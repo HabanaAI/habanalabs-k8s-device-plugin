@@ -19,7 +19,7 @@
 #define HLML_EVENT_CLOCK_RATE		(1 << 2)
 
 /* Enum for returned values of the different APIs */
-enum hlml_return_t {
+typedef enum hlml_return {
 	HLML_SUCCESS = 0,
 	HLML_ERROR_UNINITIALIZED = 1,
 	HLML_ERROR_INVALID_ARGUMENT = 2,
@@ -32,7 +32,7 @@ enum hlml_return_t {
 	HLML_ERROR_MEMORY = 20,
 	HLML_ERROR_NO_DATA = 21,
 	HLML_ERROR_UNKNOWN = 49,
-};
+} hlml_return_t;
 
 /*
  * bus - The bus on which the device resides, 0 to 0xf
@@ -41,66 +41,70 @@ enum hlml_return_t {
  * domain - The PCI domain on which the device's bus resides
  * pciDeviceId - The combined 16b deviceId and 16b vendor id
  */
-struct hlml_pci_info_t {
+typedef struct hlml_pci_info {
 	unsigned int bus;
 	char busId[PCI_ADDR_LEN];
 	unsigned int device;
 	unsigned int domain;
 	unsigned int pciDeviceId;
-};
+} hlml_pci_info_t;
 
-enum hlml_clock_type_t {
+typedef enum hlml_clock_type {
 	HLML_CLOCK_SOC = 0,
 	HLML_CLOCK_IC = 1,
 	HLML_CLOCK_MME = 2,
 	HLML_CLOCK_TPC = 3,
 	HLML_CLOCK_COUNT
-};
+} hlml_clock_type_t;
 
-struct hlml_utilization_t {
+typedef struct hlml_utilization {
 	unsigned int aip;
-};
+} hlml_utilization_t;
 
-struct hlml_memory_t {
+typedef struct hlml_memory {
 	unsigned long long free;
 	unsigned long long total; /* Total installed memory (in bytes) */
 	unsigned long long used;
-};
+} hlml_memory_t;
 
-enum hlml_temperature_sensors_t {
+typedef enum hlml_temperature_sensors {
 	HLML_TEMPERATURE_ON_AIP = 0,
 	HLML_TEMPERATURE_ON_BOARD = 1
-};
+} hlml_temperature_sensors_t;
 
-enum hlml_temperature_thresholds_t {
+typedef enum hlml_temperature_thresholds {
 	HLML_TEMPERATURE_THRESHOLD_SHUTDOWN = 0,
 	HLML_TEMPERATURE_THRESHOLD_SLOWDOWN = 1,
 	HLML_TEMPERATURE_THRESHOLD_MEM_MAX = 2,
 	HLML_TEMPERATURE_THRESHOLD_GPU_MAX = 3,
 	HLML_TEMPERATURE_THRESHOLD_COUNT
-};
+} hlml_temperature_thresholds_t;
 
-enum hlml_enable_state_t {
+
+typedef enum hlml_enable_state {
 	HLML_FEATURE_DISABLED = 0,
 	HLML_FEATURE_ENABLED = 1
-};
+} hlml_enable_state_t;
 
-enum hlml_p_states_t {
+
+typedef enum hlml_p_states {
 	HLML_PSTATE_0 = 0,
 	HLML_PSTATE_UNKNOWN = 32
-};
+} hlml_p_states_t;
 
-enum hlml_memory_error_type_t {
+
+typedef enum hlml_memory_error_type {
 	HLML_MEMORY_ERROR_TYPE_CORRECTED = 0,
 	HLML_MEMORY_ERROR_TYPE_UNCORRECTED = 1,
 	HLML_MEMORY_ERROR_TYPE_COUNT
-};
+} hlml_memory_error_type_t;
 
-enum hlml_ecc_counter_type_t {
+
+typedef enum hlml_ecc_counter_type {
 	HLML_VOLATILE_ECC = 0,
 	HLML_AGGREGATE_ECC = 1,
 	HLML_ECC_COUNTER_TYPE_COUNT
-};
+} hlml_ecc_counter_type_t;
 
 typedef void* hlmlDevice_t;
 
