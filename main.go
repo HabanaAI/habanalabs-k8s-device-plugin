@@ -19,29 +19,11 @@ package main
 import (
 	"log"
 	"os"
+	"syscall"
 
+	"github.com/fsnotify/fsnotify"
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
-
-func getDevices() []*pluginapi.Device {
-	/*	n, err := hlml.GetDeviceCount()
-		check(err)
-	*/
-	var devs []*pluginapi.Device
-	/*
-		for i := uint(0); i < n; i++ {
-			d, err := hlml.NewDevice(i)
-			check(err)
-
-			dev := pluginapi.Device{
-				ID:     d.UUID,
-				Health: pluginapi.Healthy,
-			}
-			devs = append(devs, &dev)
-		}
-	*/
-	return devs
-}
 
 func main() {
 	/*	log.Println("Loading HLML")
@@ -69,8 +51,46 @@ func main() {
 	defer watcher.Close()
 
 	log.Println("Starting OS watcher")
-	/*sigs := newOSWatcher(syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	sigs := newOSWatcher(syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	restart := true
-	var devicePlugin *HabanalabsDevicePlugin*/
+	var devicePlugin *HabanalabsDevicePlugin
+
+L:
+	for {
+		if restart {
+			if devicePlugin != nil {
+				devicePlugin.Stop()
+			}
+
+			devicePlugin = NewHabanalabsDevicePlugin()
+			if err := devicePlugin.Serve(); err != nil {
+				log.Println("Could not contact Kubelet, retrying. Did you enable the device plugin feature gate?")
+			} else {
+				restart = false
+			}
+		}
+
+		select {
+		case event := <-watcher.Events:
+			if event.Name == pluginapi.KubeletSocket && event.Op&fsnotify.Create == fsnotify.Create {
+				log.Printf("inotify: %s created, restarting.", pluginapi.KubeletSocket)
+				restart = true
+			}
+
+		case err := <-watcher.Errors:
+			log.Printf("inotify: %s", err)
+
+		case s := <-sigs:
+			switch s {
+			case syscall.SIGHUP:
+				log.Println("Received SIGHUP, restarting")
+				restart = true
+			default:
+				log.Printf("Received signal \"%v\", shutting down", s)
+				devicePlugin.Stop()
+				break L
+			}
+		}
+	}
 }
