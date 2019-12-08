@@ -26,11 +26,13 @@ import (
 )
 
 func main() {
-	/*	log.Println("Loading HLML")
-		if err := hlmlInit(); err != nil {
-			log.Printf("Failed to initialize HLML: %s.", err)
-		}
-		defer func() { log.Println("Shutdown of HLML returned:", hlmlShutdown()) }()*/
+	log.Println("Loading HLML")
+	if err := hlmlInit(); err != nil {
+		log.Printf("Failed to initialize HLML: %s", err)
+		return
+	}
+
+	defer func() { log.Println("Shutdown of HLML returned:", hlmlShutdown()) }()
 
 	log.Println("Fetching devices")
 

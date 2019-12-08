@@ -22,10 +22,34 @@ import "C"
 import "fmt"
 
 func errorString(ret C.hlml_return_t) error {
-	if ret == C.HLML_SUCCESS {
+	switch ret {
+	case C.HLML_SUCCESS:
 		return nil
+	case C.HLML_ERROR_UNINITIALIZED:
+		return fmt.Errorf("HLML not initialized")
+	case C.HLML_ERROR_INVALID_ARGUMENT:
+		return fmt.Errorf("Invalid argument")
+	case C.HLML_ERROR_NOT_SUPPORTED:
+		return fmt.Errorf("Not supported")
+	case C.HLML_ERROR_ALREADY_INITIALIZED:
+		return fmt.Errorf("HLML already initialized")
+	case C.HLML_ERROR_NOT_FOUND:
+		return fmt.Errorf("Not found")
+	case C.HLML_ERROR_INSUFFICIENT_SIZE:
+		return fmt.Errorf("Insufficient size")
+	case C.HLML_ERROR_DRIVER_NOT_LOADED:
+		return fmt.Errorf("Driver not loaded")
+	case C.HLML_ERROR_AIP_IS_LOST:
+		return fmt.Errorf("AIP is lost")
+	case C.HLML_ERROR_MEMORY:
+		return fmt.Errorf("Memory error")
+	case C.HLML_ERROR_NO_DATA:
+		return fmt.Errorf("No data")
+	case C.HLML_ERROR_UNKNOWN:
+		return fmt.Errorf("Unknown error")
 	}
-	return fmt.Errorf("Unknown error")
+
+	return fmt.Errorf("Invalid error return code")
 }
 
 func hlmlInit() error {

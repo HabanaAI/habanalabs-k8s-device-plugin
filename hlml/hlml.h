@@ -8,6 +8,10 @@
 #ifndef __HLML_H__
 #define __HLML_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define PCI_DOMAIN_LEN		5
 #define PCI_ADDR_LEN		((PCI_DOMAIN_LEN) + 10)
 
@@ -80,18 +84,15 @@ typedef enum hlml_temperature_thresholds {
 	HLML_TEMPERATURE_THRESHOLD_COUNT
 } hlml_temperature_thresholds_t;
 
-
 typedef enum hlml_enable_state {
 	HLML_FEATURE_DISABLED = 0,
 	HLML_FEATURE_ENABLED = 1
 } hlml_enable_state_t;
 
-
 typedef enum hlml_p_states {
 	HLML_PSTATE_0 = 0,
 	HLML_PSTATE_UNKNOWN = 32
 } hlml_p_states_t;
-
 
 typedef enum hlml_memory_error_type {
 	HLML_MEMORY_ERROR_TYPE_CORRECTED = 0,
@@ -99,21 +100,20 @@ typedef enum hlml_memory_error_type {
 	HLML_MEMORY_ERROR_TYPE_COUNT
 } hlml_memory_error_type_t;
 
-
 typedef enum hlml_ecc_counter_type {
 	HLML_VOLATILE_ECC = 0,
 	HLML_AGGREGATE_ECC = 1,
 	HLML_ECC_COUNTER_TYPE_COUNT
 } hlml_ecc_counter_type_t;
 
-typedef void* hlmlDevice_t;
+typedef void* hlml_device_t;
 
 typedef struct hlml_event_data {
-	hlmlDevice_t device; /* Specific device where the event occurred. */
+	hlml_device_t device; /* Specific device where the event occurred. */
 	unsigned long long event_type; /* Specific event that occurred */
-} hlmlEventData_t;
+} hlml_event_data_t;
 
-typedef void* hlmlEventSet_t;
+typedef void* hlml_event_set_t;
 
 /* supported APIs */
 hlml_return_t hlml_init(void);
@@ -124,76 +124,80 @@ hlml_return_t hlml_shutdown(void);
 
 hlml_return_t hlml_device_get_count(unsigned int *device_count);
 
-hlml_return_t hlml_device_get_handle_by_pci_bus_id(const char *pci_addr, hlmlDevice_t *device);
+hlml_return_t hlml_device_get_handle_by_pci_bus_id(const char *pci_addr, hlml_device_t *device);
 
-hlml_return_t hlml_device_get_handle_by_index(unsigned int index, hlmlDevice_t *device);
+hlml_return_t hlml_device_get_handle_by_index(unsigned int index, hlml_device_t *device);
 
-hlml_return_t hlml_device_get_name(hlmlDevice_t device, char *name,
+hlml_return_t hlml_device_get_name(hlml_device_t device, char *name,
 				   unsigned int  length);
 
-hlml_return_t hlml_device_get_pci_info(hlmlDevice_t device,
+hlml_return_t hlml_device_get_pci_info(hlml_device_t device,
 				       hlml_pci_info_t *pci);
 
-hlml_return_t hlml_device_get_clock_info(hlmlDevice_t device,
+hlml_return_t hlml_device_get_clock_info(hlml_device_t device,
 					 hlml_clock_type_t type,
 					 unsigned int *clock);
 
-hlml_return_t hlml_device_get_max_clock_info(hlmlDevice_t device,
+hlml_return_t hlml_device_get_max_clock_info(hlml_device_t device,
 					     hlml_clock_type_t type,
 					     unsigned int *clock);
 
-hlml_return_t hlml_device_get_utilization_rates(hlmlDevice_t device,
+hlml_return_t hlml_device_get_utilization_rates(hlml_device_t device,
 					hlml_utilization_t *utilization);
 
-hlml_return_t hlml_device_get_memory_info(hlmlDevice_t device,
+hlml_return_t hlml_device_get_memory_info(hlml_device_t device,
 					  hlml_memory_t *memory);
 
-hlml_return_t hlml_device_get_temperature(hlmlDevice_t device,
+hlml_return_t hlml_device_get_temperature(hlml_device_t device,
 					  hlml_temperature_sensors_t sensor_type,
 					  unsigned int *temp);
 
-hlml_return_t hlml_device_get_temperature_threshold(hlmlDevice_t device,
+hlml_return_t hlml_device_get_temperature_threshold(hlml_device_t device,
 				hlml_temperature_thresholds_t threshold_type,
 				unsigned int *temp);
 
-hlml_return_t hlml_device_get_persistence_mode(hlmlDevice_t device,
+hlml_return_t hlml_device_get_persistence_mode(hlml_device_t device,
 						hlml_enable_state_t *mode);
 
-hlml_return_t hlml_device_get_performance_state(hlmlDevice_t device,
+hlml_return_t hlml_device_get_performance_state(hlml_device_t device,
 						hlml_p_states_t *p_state);
 
-hlml_return_t hlml_device_get_power_usage(hlmlDevice_t device,
+hlml_return_t hlml_device_get_power_usage(hlml_device_t device,
 					  unsigned int *power);
 
-hlml_return_t hlml_device_get_power_management_default_limit(hlmlDevice_t device,
+hlml_return_t hlml_device_get_power_management_default_limit(hlml_device_t device,
 						unsigned int *default_limit);
 
-hlml_return_t hlml_device_get_ecc_mode(hlmlDevice_t device,
+hlml_return_t hlml_device_get_ecc_mode(hlml_device_t device,
 				       hlml_enable_state_t *current,
 				       hlml_enable_state_t *pending);
 
-hlml_return_t hlml_device_get_total_ecc_errors(hlmlDevice_t device,
+hlml_return_t hlml_device_get_total_ecc_errors(hlml_device_t device,
 					hlml_memory_error_type_t error_type,
 					hlml_ecc_counter_type_t counter_type,
 					unsigned long long *ecc_counts);
 
-hlml_return_t hlml_device_get_uuid(hlmlDevice_t device,
+hlml_return_t hlml_device_get_uuid(hlml_device_t device,
 				   char *uuid,
 				   unsigned int length);
 
-hlml_return_t hlml_device_get_minor_number(hlmlDevice_t device,
+hlml_return_t hlml_device_get_minor_number(hlml_device_t device,
 					   unsigned int *minor_number);
 
-hlml_return_t hlml_device_register_events(hlmlDevice_t device,
+hlml_return_t hlml_device_register_events(hlml_device_t device,
 					  unsigned long long event_types,
-					  hlmlEventSet_t set);
+					  hlml_event_set_t set);
 
-hlml_return_t hlml_event_set_create(hlmlEventSet_t *set);
+hlml_return_t hlml_event_set_create(hlml_event_set_t *set);
 
-hlml_return_t hlml_event_set_free(hlmlEventSet_t set);
+hlml_return_t hlml_event_set_free(hlml_event_set_t set);
 
-hlml_return_t hlml_event_set_wait(hlmlEventSet_t set,
-				  hlmlEventData_t *data,
+hlml_return_t hlml_event_set_wait(hlml_event_set_t set,
+				  hlml_event_data_t *data,
 				  unsigned int timeoutms);
+
+#ifdef __cplusplus
+}   //extern "C"
+#endif
 
 #endif /* __HLML_H__ */
