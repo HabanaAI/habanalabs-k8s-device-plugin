@@ -12,24 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: habanalabs-device-plugin-daemonset
   namespace: kube-system
 spec:
+  selector:
+    matchLabels:
+      name: habanalabs-device-plugin-ds
+  updateStrategy:
+    type: RollingUpdate
   template:
     metadata:
+      # This annotation is deprecated. Kept here for backward compatibility
+      # See https://kubernetes.io/docs/tasks/administer-cluster/guaranteed-scheduling-critical-addon-pods/
       annotations:
         scheduler.alpha.kubernetes.io/critical-pod: ""
       labels:
         name: habanalabs-device-plugin-ds
     spec:
-      tolerations:
-      - key: CriticalAddonsOnly
-        operator: Exists
+      priorityClassName: "system-node-critical"
       containers:
-      - image: habanalabs/k8s-device-plugin:0.5.0-beta1
+      - image: artifactory.habana-labs.com/docker-local/0.5.0/habanalabs/k8s-device-plugin:0.5.0-beta1
         name: habanalabs-device-plugin-ctr
         securityContext:
           allowPrivilegeEscalation: false
@@ -42,3 +47,4 @@ spec:
         - name: device-plugin
           hostPath:
             path: /var/lib/kubelet/device-plugins
+
