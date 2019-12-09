@@ -18,27 +18,34 @@ package main
 
 import (
 	"context"
+	"log"
 
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
-func getDevices() []*pluginapi.Device {
-	/*	n, err := hlml.GetDeviceCount()
-		check(err)
-	*/
-	var devs []*pluginapi.Device
-	/*
-		for i := uint(0); i < n; i++ {
-			d, err := hlml.NewDevice(i)
-			check(err)
+func checkErr(err error) {
+	if err != nil {
+		log.Panicln("Fatal:", err)
+	}
+}
 
-			dev := pluginapi.Device{
-				ID:     d.UUID,
-				Health: pluginapi.Healthy,
-			}
-			devs = append(devs, &dev)
+func getDevices() []*pluginapi.Device {
+	NumOfDevices, err := hlmlGetDeviceCount()
+	checkErr(err)
+
+	var devs []*pluginapi.Device
+
+	for i := uint(0); i < NumOfDevices; i++ {
+		newDevice, err := hlmlNewDevice(i)
+		checkErr(err)
+
+		dev := pluginapi.Device{
+			ID:     newDevice.UUID,
+			Health: pluginapi.Healthy,
 		}
-	*/
+		devs = append(devs, &dev)
+	}
+
 	return devs
 }
 

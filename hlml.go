@@ -21,6 +21,44 @@ package main
 import "C"
 import "fmt"
 
+const (
+	szUUID = 256
+
+	// HlmlCriticalError indicates a critical error in the device
+	HlmlCriticalError = C.HLML_EVENT_CRITICAL_ERR
+)
+
+type handle struct{ dev C.hlml_device_t }
+
+// PCIInfo contains the PCI properties of the device
+type PCIInfo struct {
+	BusID string
+}
+
+// Device contains the information about the device
+type Device struct {
+	handle
+
+	Path string
+	UUID string
+	PCI  PCIInfo
+}
+
+func uintPtr(c C.uint) *uint {
+	i := uint(c)
+	return &i
+}
+
+func uint64Ptr(c C.ulonglong) *uint64 {
+	i := uint64(c)
+	return &i
+}
+
+func stringPtr(c *C.char) *string {
+	s := C.GoString(c)
+	return &s
+}
+
 func errorString(ret C.hlml_return_t) error {
 	switch ret {
 	case C.HLML_SUCCESS:
@@ -58,4 +96,68 @@ func hlmlInit() error {
 
 func hlmlShutdown() error {
 	return errorString(C.hlml_shutdown())
+}
+
+func hlmlGetDeviceCount() (uint, error) {
+	var NumOfDevices C.uint
+
+	rc := C.hlml_device_get_count(&NumOfDevices)
+	return uint(NumOfDevices), errorString(rc)
+}
+
+func hlmlDeviceGetHandleByIndex(idx uint) (handle, error) {
+	var dev C.hlml_device_t
+
+	rc := C.hlml_device_get_handle_by_index(C.uint(idx), &dev)
+	return handle{dev}, errorString(rc)
+}
+
+func hlmlDeviceGetMinorNumber(h handle) (*uint, error) {
+	var minor C.uint
+
+	rc := C.hlml_device_get_minor_number(h.dev, &minor)
+	return uintPtr(minor), errorString(rc)
+}
+
+func hlmlDeviceGetUUID(h handle) (*string, error) {
+	var uuid [szUUID]C.char
+
+	rc := C.hlml_device_get_uuid(h.dev, &uuid[0], szUUID)
+	return stringPtr(&uuid[0]), errorString(rc)
+}
+
+func hlmlDeviceGetPciInfo(h handle) (*string, error) {
+	var pci C.hlml_pci_info_t
+
+	rc := C.hlml_device_get_pci_info(h.dev, &pci)
+	return stringPtr(&pci.busId[0]), errorString(rc)
+}
+
+func hlmlNewDevice(idx uint) (device *Device, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	deviceHandle, err := hlmlDeviceGetHandleByIndex(idx)
+	checkErr(err)
+	busid, err := hlmlDeviceGetPciInfo(deviceHandle)
+	checkErr(err)
+	minor, err := hlmlDeviceGetMinorNumber(deviceHandle)
+	checkErr(err)
+	uuid, err := hlmlDeviceGetUUID(deviceHandle)
+	checkErr(err)
+
+	path := fmt.Sprintf("/dev/hl%d", *minor)
+
+	device = &Device{
+		handle: deviceHandle,
+		UUID:   *uuid,
+		Path:   path,
+		PCI: PCIInfo{
+			BusID: *busid,
+		},
+	}
+	return
 }
