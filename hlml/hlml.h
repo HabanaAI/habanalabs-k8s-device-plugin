@@ -40,17 +40,17 @@ typedef enum hlml_return {
 
 /*
  * bus - The bus on which the device resides, 0 to 0xf
- * busId - The tuple domain:bus:device.function
+ * bus_id - The tuple domain:bus:device.function
  * device - The device's id on the bus, 0 to 31
  * domain - The PCI domain on which the device's bus resides
- * pciDeviceId - The combined 16b deviceId and 16b vendor id
+ * pci_device_id - The combined 16b deviceId and 16b vendor id
  */
 typedef struct hlml_pci_info {
 	unsigned int bus;
-	char busId[PCI_ADDR_LEN];
+	char bus_id[PCI_ADDR_LEN];
 	unsigned int device;
 	unsigned int domain;
-	unsigned int pciDeviceId;
+	unsigned int pci_device_id;
 } hlml_pci_info_t;
 
 typedef enum hlml_clock_type {
@@ -127,6 +127,8 @@ hlml_return_t hlml_device_get_count(unsigned int *device_count);
 hlml_return_t hlml_device_get_handle_by_pci_bus_id(const char *pci_addr, hlml_device_t *device);
 
 hlml_return_t hlml_device_get_handle_by_index(unsigned int index, hlml_device_t *device);
+
+hlml_return_t hlml_device_get_handle_by_UUID (const char* uuid, hlml_device_t *device);
 
 hlml_return_t hlml_device_get_name(hlml_device_t device, char *name,
 				   unsigned int  length);

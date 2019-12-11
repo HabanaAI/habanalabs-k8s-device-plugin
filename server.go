@@ -30,7 +30,7 @@ import (
 )
 
 const (
-	resourceName = "habana.ai/aip"
+	resourceName = "habana.ai/gpu"
 	serverSock   = pluginapi.DevicePluginPath + "habanalabs.sock"
 )
 
@@ -164,20 +164,52 @@ func (m *HabanalabsDevicePlugin) unhealthy(dev *pluginapi.Device) {
 // Allocate which return list of devices.
 func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	devs := m.devs
-	responses := pluginapi.AllocateResponse{}
+	response := pluginapi.AllocateResponse{ContainerResponses: []*pluginapi.ContainerAllocateResponse{}}
 	for _, req := range reqs.ContainerRequests {
-		res := pluginapi.ContainerAllocateResponse{}
+		var devicesList []*pluginapi.DeviceSpec
 
 		for _, id := range req.DevicesIDs {
-			if !deviceExists(devs, id) {
+			device := getDevice(devs, id)
+			if device == nil {
 				return nil, fmt.Errorf("Invalid request for allocation: device unknown: %s", id)
 			}
+			log.Printf("device == %s", device)
+
+			deviceHandle, err := hlmlDeviceGetHandleByUUID(id)
+			checkErr(err)
+
+			minor, err := hlmlDeviceGetMinorNumber(deviceHandle)
+			checkErr(err)
+
+			path := fmt.Sprintf("/dev/hl%d", *minor)
+
+			log.Printf("path == %s", path)
+
+			ds := &pluginapi.DeviceSpec{
+				ContainerPath: path,
+				HostPath:      path,
+				Permissions:   "rw",
+			}
+			devicesList = append(devicesList, ds)
+
+			path = fmt.Sprintf("/dev/hl_controlD%d", *minor)
+
+			log.Printf("path == %s", path)
+
+			ds = &pluginapi.DeviceSpec{
+				ContainerPath: path,
+				HostPath:      path,
+				Permissions:   "rw",
+			}
+			devicesList = append(devicesList, ds)
 		}
 
-		responses.ContainerResponses = append(responses.ContainerResponses, &res)
+		response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
+			Devices: devicesList,
+		})
 	}
 
-	return &responses, nil
+	return &response, nil
 }
 
 // PreStartContainer performs actions before the container start

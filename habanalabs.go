@@ -58,6 +58,15 @@ func deviceExists(devs []*pluginapi.Device, id string) bool {
 	return false
 }
 
+func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
+	for _, d := range devs {
+		if d.ID == id {
+			return d
+		}
+	}
+	return nil
+}
+
 func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
 	for {
 		select {

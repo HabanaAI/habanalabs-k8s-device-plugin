@@ -18,8 +18,12 @@ package main
 
 // #cgo LDFLAGS: "./hlml/libhlml.a" -ldl -Wl,--unresolved-symbols=ignore-in-object-files
 // #include "hlml/hlml.h"
+// #include <stdlib.h>
 import "C"
-import "fmt"
+import (
+	"fmt"
+	"unsafe"
+)
 
 const (
 	szUUID = 256
@@ -112,6 +116,16 @@ func hlmlDeviceGetHandleByIndex(idx uint) (handle, error) {
 	return handle{dev}, errorString(rc)
 }
 
+func hlmlDeviceGetHandleByUUID(uuid string) (handle, error) {
+	var dev C.hlml_device_t
+
+	cstr := C.CString(uuid)
+	defer C.free(unsafe.Pointer(cstr))
+
+	rc := C.hlml_device_get_handle_by_UUID(cstr, &dev)
+	return handle{dev}, errorString(rc)
+}
+
 func hlmlDeviceGetMinorNumber(h handle) (*uint, error) {
 	var minor C.uint
 
@@ -130,7 +144,7 @@ func hlmlDeviceGetPciInfo(h handle) (*string, error) {
 	var pci C.hlml_pci_info_t
 
 	rc := C.hlml_device_get_pci_info(h.dev, &pci)
-	return stringPtr(&pci.busId[0]), errorString(rc)
+	return stringPtr(&pci.bus_id[0]), errorString(rc)
 }
 
 func hlmlNewDevice(idx uint) (device *Device, err error) {
