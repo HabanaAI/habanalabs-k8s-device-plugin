@@ -34,6 +34,15 @@ const (
 
 type handle struct{ dev C.hlml_device_t }
 
+// EventSet is a cast of the C type of the hlml event set
+type EventSet struct{ set C.hlml_event_set_t }
+
+// Event contains uuid and event type
+type Event struct {
+	UUID  *string
+	Etype uint64
+}
+
 // PCIInfo contains the PCI properties of the device
 type PCIInfo struct {
 	BusID string
@@ -96,6 +105,10 @@ func errorString(ret C.hlml_return_t) error {
 
 func hlmlInit() error {
 	return errorString(C.hlml_init())
+}
+
+func hlmlInitWithLogs() error {
+	return errorString(C.hlml_init_with_flags(0x6))
 }
 
 func hlmlShutdown() error {
@@ -174,4 +187,44 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 		},
 	}
 	return
+}
+
+func hlmlNewEventSet() EventSet {
+	var set C.hlml_event_set_t
+	C.hlml_event_set_create(&set)
+
+	return EventSet{set}
+}
+
+func hlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
+
+	deviceHandle, err := hlmlDeviceGetHandleByUUID(uuid)
+
+	if err != nil {
+		return fmt.Errorf("hlml: device not found")
+	}
+
+	r := C.hlml_device_register_events(deviceHandle.dev, C.ulonglong(event), es.set)
+	if r != C.HLML_SUCCESS {
+		return errorString(r)
+	}
+
+	return nil
+}
+
+func hlmlDeleteEventSet(es EventSet) {
+	C.hlml_event_set_free(es.set)
+}
+
+func hlmlWaitForEvent(es EventSet, timeout uint) (Event, error) {
+	var data C.hlml_event_data_t
+
+	r := C.hlml_event_set_wait(es.set, &data, C.uint(timeout))
+	uuid, _ := hlmlDeviceGetUUID(handle{data.device})
+
+	return Event{
+			UUID:  uuid,
+			Etype: uint64(data.event_type),
+		},
+		errorString(r)
 }

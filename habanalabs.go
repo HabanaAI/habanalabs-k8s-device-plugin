@@ -68,12 +68,50 @@ func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
 }
 
 func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
+	eventSet := hlmlNewEventSet()
+	defer hlmlDeleteEventSet(eventSet)
+
+	for _, d := range devs {
+		err := hlmlRegisterEventForDevice(eventSet, HlmlCriticalError, d.ID)
+		if err != nil {
+			log.Printf("Failed to register critical events for %s, error %s. Marking it unhealthy", d.ID, err)
+
+			xids <- d
+			continue
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		default:
 		}
 
-		// TODO: check Habanalabs device healthy status
+		e, err := hlmlWaitForEvent(eventSet, 5000)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		if e.Etype != HlmlCriticalError {
+			continue
+		}
+
+		if e.UUID == nil || len(*e.UUID) == 0 {
+			// All devices are unhealthy
+			for _, d := range devs {
+				log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
+				xids <- d
+			}
+			continue
+		}
+
+		for _, d := range devs {
+			if d.ID == *e.UUID {
+				log.Printf("XidCriticalError: Xid=%d on GPU=%s, the device will go unhealthy", e.Etype, d.ID)
+				xids <- d
+			}
+		}
 	}
 }
