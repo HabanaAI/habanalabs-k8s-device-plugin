@@ -8,7 +8,7 @@ spec:
     accelerator: habanalabs
   containers:
     - name: habana-ai-base-container
-      image: habanai/goya-demo:0.5.0-338-debian9.8
+      image: habanai/goya-demo:0.5.0-359-debian9.8
       workingDir: /home/user1
       securityContext:
         capabilities:
