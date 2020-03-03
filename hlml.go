@@ -100,7 +100,7 @@ func errorString(ret C.hlml_return_t) error {
 		return fmt.Errorf("Unknown error")
 	}
 
-	return fmt.Errorf("Invalid error return code")
+	return fmt.Errorf("Invalid HLML error return code %d", ret)
 }
 
 func hlmlInit() error {
