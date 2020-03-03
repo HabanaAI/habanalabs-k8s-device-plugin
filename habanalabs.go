@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
@@ -91,7 +92,8 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		e, err := hlmlWaitForEvent(eventSet, 5000)
 		if err != nil {
 			log.Println(err)
-			return
+			time.Sleep(2 * time.Second)
+			continue
 		}
 
 		if e.Etype != HlmlCriticalError {
