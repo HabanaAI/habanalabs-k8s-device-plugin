@@ -75,6 +75,8 @@ func stringPtr(c *C.char) *string {
 func errorString(ret C.hlml_return_t) error {
 	switch ret {
 	case C.HLML_SUCCESS:
+		fallthrough
+	case C.HLML_ERROR_TIMEOUT:
 		return nil
 	case C.HLML_ERROR_UNINITIALIZED:
 		return fmt.Errorf("HLML not initialized")
