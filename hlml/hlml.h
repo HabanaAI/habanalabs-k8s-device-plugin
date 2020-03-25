@@ -111,6 +111,15 @@ typedef enum hlml_ecc_counter_type {
 	HLML_ECC_COUNTER_TYPE_COUNT
 } hlml_ecc_counter_type_t;
 
+typedef enum hlml_err_inject {
+	HLML_ERR_INJECT_ENDLESS_COMMAND = 0,
+	HLML_ERR_INJECT_NON_FATAL_EVENT = 1,
+	HLML_ERR_INJECT_FATAL_EVENT = 2,
+	HLML_ERR_INJECT_LOSS_OF_HEARTBEAT = 3,
+	HLML_ERR_INJECT_THERMAL_EVENT = 4,
+	HLML_ERR_INJECT_COUNT
+} hlml_err_inject_t;
+
 typedef void* hlml_device_t;
 
 typedef struct hlml_event_data {
@@ -213,6 +222,8 @@ hlml_return_t hlml_device_get_mac_info(hlml_device_t device,
 				       unsigned int mac_info_size,
 				       unsigned int start_mac_id,
 				       unsigned int *actual_mac_count);
+
+hlml_return_t hlml_device_err_inject(hlml_device_t device, hlml_err_inject_t err_type);
 
 #ifdef __cplusplus
 }   //extern "C"
