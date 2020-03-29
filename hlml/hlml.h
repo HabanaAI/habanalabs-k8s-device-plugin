@@ -8,12 +8,16 @@
 #ifndef __HLML_H__
 #define __HLML_H__
 
+#include <net/ethernet.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define PCI_DOMAIN_LEN		5
 #define PCI_ADDR_LEN		((PCI_DOMAIN_LEN) + 10)
+
+#define HLML_DEVICE_MAC_MAX_ADDRESSES	20
 
 /* Event about single/double bit ECC errors. */
 #define HLML_EVENT_ECC_ERR		(1 << 0)
@@ -32,6 +36,7 @@ typedef enum hlml_return {
 	HLML_ERROR_NOT_FOUND = 6,
 	HLML_ERROR_INSUFFICIENT_SIZE = 7,
 	HLML_ERROR_DRIVER_NOT_LOADED = 9,
+	HLML_ERROR_TIMEOUT = 10,
 	HLML_ERROR_AIP_IS_LOST = 15,
 	HLML_ERROR_MEMORY = 20,
 	HLML_ERROR_NO_DATA = 21,
@@ -106,6 +111,15 @@ typedef enum hlml_ecc_counter_type {
 	HLML_ECC_COUNTER_TYPE_COUNT
 } hlml_ecc_counter_type_t;
 
+typedef enum hlml_err_inject {
+	HLML_ERR_INJECT_ENDLESS_COMMAND = 0,
+	HLML_ERR_INJECT_NON_FATAL_EVENT = 1,
+	HLML_ERR_INJECT_FATAL_EVENT = 2,
+	HLML_ERR_INJECT_LOSS_OF_HEARTBEAT = 3,
+	HLML_ERR_INJECT_THERMAL_EVENT = 4,
+	HLML_ERR_INJECT_COUNT
+} hlml_err_inject_t;
+
 typedef void* hlml_device_t;
 
 typedef struct hlml_event_data {
@@ -114,6 +128,11 @@ typedef struct hlml_event_data {
 } hlml_event_data_t;
 
 typedef void* hlml_event_set_t;
+
+typedef struct hlml_mac_info {
+	unsigned char addr[ETHER_ADDR_LEN];
+	int id;
+} hlml_mac_info_t;
 
 /* supported APIs */
 hlml_return_t hlml_init(void);
@@ -197,6 +216,14 @@ hlml_return_t hlml_event_set_free(hlml_event_set_t set);
 hlml_return_t hlml_event_set_wait(hlml_event_set_t set,
 				  hlml_event_data_t *data,
 				  unsigned int timeoutms);
+
+hlml_return_t hlml_device_get_mac_info(hlml_device_t device,
+				       hlml_mac_info_t *mac_info,
+				       unsigned int mac_info_size,
+				       unsigned int start_mac_id,
+				       unsigned int *actual_mac_count);
+
+hlml_return_t hlml_device_err_inject(hlml_device_t device, hlml_err_inject_t err_type);
 
 #ifdef __cplusplus
 }   //extern "C"

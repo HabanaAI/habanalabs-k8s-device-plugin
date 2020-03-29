@@ -34,7 +34,7 @@ spec:
     spec:
       priorityClassName: "system-node-critical"
       containers:
-      - image: habanai/k8s-device-plugin:0.5.0-beta13
+      - image: artifactory.habana-labs.com/docker-local/0.7.0/habanalabs/k8s-device-plugin:0.7.0
         name: habanalabs-device-plugin-ctr
         securityContext:
            privileged: true

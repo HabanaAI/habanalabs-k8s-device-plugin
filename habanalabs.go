@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
@@ -91,7 +92,8 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		e, err := hlmlWaitForEvent(eventSet, 5000)
 		if err != nil {
 			log.Println(err)
-			return
+			time.Sleep(2 * time.Second)
+			continue
 		}
 
 		if e.Etype != HlmlCriticalError {
@@ -99,9 +101,9 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		}
 
 		if e.UUID == nil || len(*e.UUID) == 0 {
+			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
 			// All devices are unhealthy
 			for _, d := range devs {
-				log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
 				xids <- d
 			}
 			continue
@@ -109,7 +111,7 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 
 		for _, d := range devs {
 			if d.ID == *e.UUID {
-				log.Printf("XidCriticalError: Xid=%d on GPU=%s, the device will go unhealthy", e.Etype, d.ID)
+				log.Printf("XidCriticalError: Xid=%d on AIP=%s, the device will go unhealthy", e.Etype, d.ID)
 				xids <- d
 			}
 		}
