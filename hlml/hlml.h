@@ -100,7 +100,7 @@ typedef enum hlml_p_states {
 } hlml_p_states_t;
 
 typedef enum hlml_memory_error_type {
-	HLML_MEMORY_ERROR_TYPE_CORRECTED = 0,
+	HLML_MEMORY_ERROR_TYPE_CORRECTED = 0, /* Not supported*/
 	HLML_MEMORY_ERROR_TYPE_UNCORRECTED = 1,
 	HLML_MEMORY_ERROR_TYPE_COUNT
 } hlml_memory_error_type_t;
