@@ -17,34 +17,32 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"syscall"
 
 	"github.com/fsnotify/fsnotify"
+
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 func main() {
+	var devicePlugin *HabanalabsDevicePlugin
+	var err error
+	restart := true
+
+	log.Println("Starting Habana device plugin manager")
 	log.Println("Loading HLML")
 	if err := hlmlInit(); err != nil {
 		log.Printf("Failed to initialize HLML: %s", err)
 		return
 	}
-
 	defer func() { log.Println("Shutdown of HLML returned:", hlmlShutdown()) }()
 
-	log.Println("Fetching devices")
-
-	devList := getDevices()
-	if len(devList) == 0 {
-		log.Println("No devices found")
-		return
-	}
-
-	log.Printf("HabanaLabs device list: %v", devList)
-
-	log.Println("Starting FS watcher")
+	log.Println("Starting FS watcher notifications of filesystem changes")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
 	if err != nil {
 		log.Println("Failed to created FS watcher")
@@ -52,20 +50,33 @@ func main() {
 	}
 	defer watcher.Close()
 
-	log.Println("Starting OS watcher")
+	log.Println("Starting OS watcher for system signal notifications")
 	sigs := newOSWatcher(syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	restart := true
-	var devicePlugin *HabanalabsDevicePlugin
+	devType := flag.String("dev_type", "goya", "Device type which can be either goya (default) or gaudi")
+	flag.Parse()
+
+	dev := strings.TrimSpace(*devType)
+	switch dev {
+	case "goya", "gaudi":
+		devicePlugin = NewHabanalabsDevicePlugin(NewDeviceManager(strings.ToUpper(dev)), "habana.ai/"+dev, pluginapi.DevicePluginPath+dev+"_habanalabs.sock")
+	default:
+		err = fmt.Errorf("Unknown device type: %s", dev)
+	}
+	if err != nil {
+		log.Println(err.Error())
+		os.Exit(1)
+	}
 
 L:
 	for {
 		if restart {
-			if devicePlugin != nil {
-				devicePlugin.Stop()
+			devicePlugin.Stop()
+
+			if len(devicePlugin.Devices()) == 0 {
+				continue
 			}
 
-			devicePlugin = NewHabanalabsDevicePlugin()
 			if err := devicePlugin.Serve(); err != nil {
 				log.Println("Could not contact Kubelet, retrying. Did you enable the device plugin feature gate?")
 			} else {
@@ -79,14 +90,12 @@ L:
 				log.Printf("inotify: %s created, restarting.", pluginapi.KubeletSocket)
 				restart = true
 			}
-
 		case err := <-watcher.Errors:
 			log.Printf("inotify: %s", err)
-
 		case s := <-sigs:
 			switch s {
 			case syscall.SIGHUP:
-				log.Println("Received SIGHUP, restarting")
+				log.Println("Received SIGHUP, restarting.")
 				restart = true
 			default:
 				log.Printf("Received signal \"%v\", shutting down", s)

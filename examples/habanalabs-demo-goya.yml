@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: habanalabs-demo-goya
+spec:
+  nodeSelector:
+    accelerator: habanalabs
+  containers:
+    - name: habana-ai-base-container
+      image: artifactory.habana-labs.com/docker-local/0.9.0/ubuntu18.04/habanalabs/demo-goya-installer:0.9.0-99
+      workingDir: /home/user1
+      securityContext:
+        capabilities:
+          add: ["SYS_RAWIO"]
+      command: ["sleep"]
+      args: ["10000"]
+      resources:
+        limits:
+          habana.ai/goya: 1
+  imagePullSecrets:
+    - name: regcred

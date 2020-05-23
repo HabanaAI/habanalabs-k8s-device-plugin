@@ -18,11 +18,77 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
+
+type DevID string
+
+const (
+	GOYA  DevID = "GOYA"
+	GAUDI DevID = "GAUDI"
+)
+
+// Device ID 16bit LSB
+func (e DevID) String() string {
+	switch e {
+	case GOYA:
+		return "0001"
+	case GAUDI:
+		return "1000"
+	}
+	return "N/A"
+}
+
+// ResourceManager interface
+type ResourceManager interface {
+	Devices() []*pluginapi.Device
+}
+
+// DeviceManager string devType: GOYA / GAUDI
+type DeviceManager struct {
+	devType string
+}
+
+func NewDeviceManager(devType string) *DeviceManager {
+	return &DeviceManager{devType: devType}
+}
+
+func (dm *DeviceManager) Devices() []*pluginapi.Device {
+	NumOfDevices, err := hlmlGetDeviceCount()
+	checkErr(err)
+
+	var devs []*pluginapi.Device
+
+	for i := uint(0); i < NumOfDevices; i++ {
+		newDevice, err := hlmlNewDevice(i)
+		checkErr(err)
+
+		dID := fmt.Sprintf("%x", newDevice.PCI.DeviceID)
+		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
+			continue
+		}
+		log.Printf("%s device identified", strings.ToUpper(dm.devType))
+
+		dev := pluginapi.Device{
+			ID:     newDevice.UUID,
+			Health: pluginapi.Healthy,
+		}
+		devs = append(devs, &dev)
+	}
+
+	return devs
+}
+
+func check(err error) {
+	if err != nil {
+		log.Panicln("Fatal:", err)
+	}
+}
 
 func checkErr(err error) {
 	if err != nil {
@@ -30,7 +96,7 @@ func checkErr(err error) {
 	}
 }
 
-func getDevices() []*pluginapi.Device {
+func getAllDevices() []*pluginapi.Device {
 	NumOfDevices, err := hlmlGetDeviceCount()
 	checkErr(err)
 
