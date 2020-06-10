@@ -15,7 +15,7 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: habanalabs-device-plugin-daemonset
+  name: habanalabs-device-plugin-daemonset-gaudi
   namespace: kube-system
 spec:
   selector:
@@ -36,6 +36,8 @@ spec:
       containers:
       - image: habanai/k8s-device-plugin:0.8.1-beta1
         name: habanalabs-device-plugin-ctr
+        command: ["habanalabs-device-plugin"]
+        args: ["--dev_type", " gaudi"]
         securityContext:
            privileged: true
         volumeMounts:
