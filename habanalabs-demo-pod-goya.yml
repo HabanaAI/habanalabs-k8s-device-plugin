@@ -13,7 +13,7 @@ spec:
         capabilities:
           add: ["SYS_RAWIO"]
       command: ["sleep"]
-      args: ["100000"]
+      args: ["10000"]
       resources:
         limits:
           habana.ai/goya: 1
