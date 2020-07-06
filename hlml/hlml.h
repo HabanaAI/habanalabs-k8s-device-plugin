@@ -16,6 +16,7 @@ extern "C" {
 
 #define PCI_DOMAIN_LEN		5
 #define PCI_ADDR_LEN		((PCI_DOMAIN_LEN) + 10)
+#define PCI_LINK_INFO_LEN	10
 
 #define HLML_DEVICE_MAC_MAX_ADDRESSES	20
 
@@ -44,6 +45,15 @@ typedef enum hlml_return {
 } hlml_return_t;
 
 /*
+ * link_speed - current pci link speed
+ * link_width - current pci link width
+ */
+typedef struct hlml_pci_cap {
+	char link_speed[PCI_LINK_INFO_LEN];
+	char link_width[PCI_LINK_INFO_LEN];
+} hlml_pci_cap_t;
+
+/*
  * bus - The bus on which the device resides, 0 to 0xf
  * bus_id - The tuple domain:bus:device.function
  * device - The device's id on the bus, 0 to 31
@@ -56,6 +66,7 @@ typedef struct hlml_pci_info {
 	unsigned int device;
 	unsigned int domain;
 	unsigned int pci_device_id;
+	hlml_pci_cap_t caps;
 } hlml_pci_info_t;
 
 typedef enum hlml_clock_type {
@@ -100,7 +111,7 @@ typedef enum hlml_p_states {
 } hlml_p_states_t;
 
 typedef enum hlml_memory_error_type {
-	HLML_MEMORY_ERROR_TYPE_CORRECTED = 0,
+	HLML_MEMORY_ERROR_TYPE_CORRECTED = 0, /* Not supported*/
 	HLML_MEMORY_ERROR_TYPE_UNCORRECTED = 1,
 	HLML_MEMORY_ERROR_TYPE_COUNT
 } hlml_memory_error_type_t;
