@@ -46,7 +46,7 @@ spec:
     accelerator: habanalabs
   containers:
     - name: habana-ai-base-container
-      image: habanai/goya-demo:0.8.1-55-debian9.8
+      image: habanai/goya-demo:0.9.1-43-debian9.8
       workingDir: /home/user1
       securityContext:
         capabilities:
@@ -74,20 +74,20 @@ $ kubectl create -f habanalabs-device-plugin-gaudi.yaml
 #### Build
 Option 1, pull the prebuilt image from [Docker Hub](https://hub.docker.com/r/habanai/k8s-device-plugin):
 ```shell
-$ docker pull habanai/k8s-device-plugin:0.8.1-beta1
+$ docker pull habanai/k8s-device-plugin:0.9.1
 ```
 
 Option 2, build without cloning the repository:
 ```shell
-$ docker build --network=host --no-cache -t habanai/k8s-device-plugin:0.8.1-beta1  habanalabs-k8s-device-plugin
+$ docker build --network=host --no-cache -t habanai/k8s-device-plugin:0.9.1  habanalabs-k8s-device-plugin
 ```
 
 Option 3, if you want to modify the code:
 ```shell
 https://github.com/HabDevops/habanalabs-k8s-device-plugin
 $ git clone https://github.com/HabDevops/habanalabs-k8s-device-plugin.git && cd habanalabs-k8s-device-plugin
-$ git checkout v0.8.1-beta1
-$ docker build -t habanai/k8s-device-plugin:0.8.1-beta1 .
+$ git checkout v0.9.1
+$ docker build -t habanai/k8s-device-plugin:0.9.1 .
 ```
 
 #### Deploy as Daemon Set:
@@ -97,8 +97,10 @@ $ kubectl create -f habanalabs-device-plugin.yaml
 
 ## Changelog
 
-### Version 0.8.1-beta1
+### Version 0.9.1
+- New HLML SW 0.9.1-43 debian9.8
 
+### Version 0.8.1-beta1
 - Support k8s plugin for Gaudi
 - New HLML SW 0.8.1-55 debian9.8
 - Add new resource namespace e.g: goya/gaudi 
