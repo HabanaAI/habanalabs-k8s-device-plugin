@@ -21,7 +21,12 @@ package main
 // #include <stdlib.h>
 import "C"
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io/ioutil"
+	"strconv"
+	"strings"
 	"unsafe"
 
 	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
@@ -31,6 +36,8 @@ const (
 	szUUID = 256
 	// HlmlCriticalError indicates a critical error in the device
 	HlmlCriticalError = C.HLML_EVENT_CRITICAL_ERR
+	// ErrCPUAffinity error on CPU affinity
+	ErrCPUAffinity = errors.New("failed to retrieve CPU affinity")
 )
 
 type handle struct{ dev C.hlml_device_t }
@@ -106,6 +113,26 @@ func errorString(ret C.hlml_return_t) error {
 	}
 
 	return fmt.Errorf("Invalid HLML error return code %d", ret)
+}
+
+func numaNode(busid string) (*uint, error) {
+	// discard leading zeros of busid
+	b, err := ioutil.ReadFile(fmt.Sprintf("/sys/bus/pci/devices/%s/numa_node", strings.ToLower(busid[4:])))
+	if err != nil {
+		// XXX report nil if NUMA support isn't enabled
+		return nil, nil
+	}
+	node, err := strconv.ParseInt(string(bytes.TrimSpace(b)), 10, 8)
+	if err != nil {
+		return nil, fmt.Errorf("%v: %v", ErrCPUAffinity, err)
+	}
+	if node < 0 {
+		// XXX report nil instead of NUMA_NO_NODE
+		return nil, nil
+	}
+
+	numaNode := uint(node)
+	return &numaNode, nil
 }
 
 func hlmlInit() error {
@@ -191,11 +218,14 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 	checkErr(err)
 
 	path := fmt.Sprintf("/dev/hl%d", *minor)
+	node, err := numaNode(*busid)
+	assert(err)
 
 	device = &Device{
-		handle: deviceHandle,
-		UUID:   *uuid,
-		Path:   path,
+		handle:      deviceHandle,
+		UUID:        *uuid,
+		Path:        path,
+		CPUAffinity: node,
 		PCI: PCIInfo{
 			BusID:    *busid,
 			DeviceID: *deviceID,
