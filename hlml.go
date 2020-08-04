@@ -36,6 +36,9 @@ const (
 	szUUID = 256
 	// HlmlCriticalError indicates a critical error in the device
 	HlmlCriticalError = C.HLML_EVENT_CRITICAL_ERR
+)
+
+var (
 	// ErrCPUAffinity error on CPU affinity
 	ErrCPUAffinity = errors.New("failed to retrieve CPU affinity")
 )
@@ -62,9 +65,10 @@ type Device struct {
 	handle
 	pluginapi.Device
 
-	Path string
-	UUID string
-	PCI  PCIInfo
+	Path        string
+	UUID        string
+	CPUAffinity *uint
+	PCI         PCIInfo
 }
 
 func uintPtr(c C.uint) *uint {
@@ -219,7 +223,7 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 
 	path := fmt.Sprintf("/dev/hl%d", *minor)
 	node, err := numaNode(*busid)
-	assert(err)
+	checkErr(err)
 
 	device = &Device{
 		handle:      deviceHandle,
