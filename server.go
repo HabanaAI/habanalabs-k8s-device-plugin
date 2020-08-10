@@ -23,6 +23,7 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -109,7 +110,7 @@ func (m *HabanalabsDevicePlugin) Start() error {
 	return nil
 }
 
-// Stop stops the gRPC server
+// Stop gRPC server
 func (m *HabanalabsDevicePlugin) Stop() error {
 	if m.server == nil {
 		return nil
@@ -171,6 +172,8 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 	response := pluginapi.AllocateResponse{ContainerResponses: []*pluginapi.ContainerAllocateResponse{}}
 	for _, req := range reqs.ContainerRequests {
 		var devicesList []*pluginapi.DeviceSpec
+		paths := make([]string, 0, len(req.DevicesIDs))
+		uuids := make([]string, 0, len(req.DevicesIDs))
 
 		for _, id := range req.DevicesIDs {
 			device := getDevice(devs, id)
@@ -186,6 +189,8 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			checkErr(err)
 
 			path := fmt.Sprintf("/dev/hl%d", *minor)
+			paths = append(paths, path)
+			uuids = append(uuids, id)
 
 			log.Printf("path == %s", path)
 
@@ -210,6 +215,10 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 
 		response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
 			Devices: devicesList,
+			Envs: map[string]string{
+				"HL_VISIBLE_DEVICES":      strings.Join(paths[:], ","),
+				"HL_VISIBLE_DEVICES_UUID": strings.Join(uuids[:], ","),
+			},
 		})
 	}
 
