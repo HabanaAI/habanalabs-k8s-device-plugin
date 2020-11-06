@@ -23,11 +23,12 @@ import "C"
 import (
 	"fmt"
 	"unsafe"
+
+	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 const (
 	szUUID = 256
-
 	// HlmlCriticalError indicates a critical error in the device
 	HlmlCriticalError = C.HLML_EVENT_CRITICAL_ERR
 )
@@ -45,12 +46,14 @@ type Event struct {
 
 // PCIInfo contains the PCI properties of the device
 type PCIInfo struct {
-	BusID string
+	BusID    string
+	DeviceID uint
 }
 
 // Device contains the information about the device
 type Device struct {
 	handle
+	pluginapi.Device
 
 	Path string
 	UUID string
@@ -75,6 +78,8 @@ func stringPtr(c *C.char) *string {
 func errorString(ret C.hlml_return_t) error {
 	switch ret {
 	case C.HLML_SUCCESS:
+		fallthrough
+	case C.HLML_ERROR_TIMEOUT:
 		return nil
 	case C.HLML_ERROR_UNINITIALIZED:
 		return fmt.Errorf("HLML not initialized")
@@ -100,7 +105,7 @@ func errorString(ret C.hlml_return_t) error {
 		return fmt.Errorf("Unknown error")
 	}
 
-	return fmt.Errorf("Invalid error return code")
+	return fmt.Errorf("Invalid HLML error return code %d", ret)
 }
 
 func hlmlInit() error {
@@ -160,6 +165,13 @@ func hlmlDeviceGetPciInfo(h handle) (*string, error) {
 	return stringPtr(&pci.bus_id[0]), errorString(rc)
 }
 
+func hlmlDeviceGetDeviceID(h handle) (*uint, error) {
+	var pci C.hlml_pci_info_t
+
+	rc := C.hlml_device_get_pci_info(h.dev, &pci)
+	return uintPtr(pci.pci_device_id), errorString(rc)
+}
+
 func hlmlNewDevice(idx uint) (device *Device, err error) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -170,6 +182,8 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 	deviceHandle, err := hlmlDeviceGetHandleByIndex(idx)
 	checkErr(err)
 	busid, err := hlmlDeviceGetPciInfo(deviceHandle)
+	checkErr(err)
+	deviceID, err := hlmlDeviceGetDeviceID(deviceHandle)
 	checkErr(err)
 	minor, err := hlmlDeviceGetMinorNumber(deviceHandle)
 	checkErr(err)
@@ -183,7 +197,8 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 		UUID:   *uuid,
 		Path:   path,
 		PCI: PCIInfo{
-			BusID: *busid,
+			BusID:    *busid,
+			DeviceID: *deviceID,
 		},
 	}
 	return

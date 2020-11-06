@@ -23,36 +23,38 @@ import (
 	"net"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
-)
 
-const (
-	resourceName = "habana.ai/gpu"
-	serverSock   = pluginapi.DevicePluginPath + "habanalabs.sock"
+	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
 )
 
 // HabanalabsDevicePlugin implements the Kubernetes device plugin API
 type HabanalabsDevicePlugin struct {
-	devs   []*pluginapi.Device
-	socket string
+	ResourceManager
+	resourceName string
+	socket       string
 
+	devs   []*pluginapi.Device
 	stop   chan interface{}
 	health chan *pluginapi.Device
-
 	server *grpc.Server
 }
 
 // NewHabanalabsDevicePlugin returns an initialized HabanalabsDevicePlugin
-func NewHabanalabsDevicePlugin() *HabanalabsDevicePlugin {
+func NewHabanalabsDevicePlugin(resourceManager ResourceManager, resourceName string, socket string) *HabanalabsDevicePlugin {
 	return &HabanalabsDevicePlugin{
-		devs:   getDevices(),
-		socket: serverSock,
+		ResourceManager: resourceManager,
+		resourceName:    resourceName,
+		socket:          socket,
 
 		stop:   make(chan interface{}),
 		health: make(chan *pluginapi.Device),
+
+		// will be initialized on every server restart.
+		devs: nil,
 	}
 }
 
@@ -79,10 +81,12 @@ func dial(unixSocketPath string, timeout time.Duration) (*grpc.ClientConn, error
 
 // Start starts the gRPC server of the device plugin
 func (m *HabanalabsDevicePlugin) Start() error {
-	err := m.cleanup()
-	if err != nil {
+	if err := m.cleanup(); err != nil {
 		return err
 	}
+
+	//  initialize Devices
+	m.devs = m.Devices()
 
 	sock, err := net.Listen("unix", m.socket)
 	if err != nil {
@@ -106,12 +110,13 @@ func (m *HabanalabsDevicePlugin) Start() error {
 	return nil
 }
 
-// Stop stops the gRPC server
+// Stop gRPC server
 func (m *HabanalabsDevicePlugin) Stop() error {
 	if m.server == nil {
 		return nil
 	}
 
+	log.Printf("Stopping to serve '%s' on %s", m.resourceName, m.socket)
 	m.server.Stop()
 	m.server = nil
 	close(m.stop)
@@ -120,8 +125,8 @@ func (m *HabanalabsDevicePlugin) Stop() error {
 }
 
 // Register registers the device plugin for the given resourceName with Kubelet.
-func (m *HabanalabsDevicePlugin) Register(kubeletEndpoint, resourceName string) error {
-	conn, err := dial(kubeletEndpoint, 5*time.Second)
+func (m *HabanalabsDevicePlugin) Register() error {
+	conn, err := dial(pluginapi.KubeletSocket, 5*time.Second)
 	if err != nil {
 		return err
 	}
@@ -131,7 +136,7 @@ func (m *HabanalabsDevicePlugin) Register(kubeletEndpoint, resourceName string) 
 	reqt := &pluginapi.RegisterRequest{
 		Version:      pluginapi.Version,
 		Endpoint:     path.Base(m.socket),
-		ResourceName: resourceName,
+		ResourceName: m.resourceName,
 	}
 
 	_, err = client.Register(context.Background(), reqt)
@@ -151,7 +156,7 @@ func (m *HabanalabsDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.De
 			return nil
 		case d := <-m.health:
 			d.Health = pluginapi.Unhealthy
-			log.Printf("device %s is unhealthy", d.ID)
+			log.Printf("'%s' device %s is unhealthy", m.resourceName, d.ID)
 			s.Send(&pluginapi.ListAndWatchResponse{Devices: m.devs})
 		}
 	}
@@ -167,11 +172,13 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 	response := pluginapi.AllocateResponse{ContainerResponses: []*pluginapi.ContainerAllocateResponse{}}
 	for _, req := range reqs.ContainerRequests {
 		var devicesList []*pluginapi.DeviceSpec
+		paths := make([]string, 0, len(req.DevicesIDs))
+		uuids := make([]string, 0, len(req.DevicesIDs))
 
 		for _, id := range req.DevicesIDs {
 			device := getDevice(devs, id)
 			if device == nil {
-				return nil, fmt.Errorf("Invalid request for allocation: device unknown: %s", id)
+				return nil, fmt.Errorf("Invalid request for '%s': device unknown: %s", m.resourceName, id)
 			}
 			log.Printf("device == %s", device)
 
@@ -182,6 +189,8 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			checkErr(err)
 
 			path := fmt.Sprintf("/dev/hl%d", *minor)
+			paths = append(paths, path)
+			uuids = append(uuids, id)
 
 			log.Printf("path == %s", path)
 
@@ -206,6 +215,10 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 
 		response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
 			Devices: devicesList,
+			Envs: map[string]string{
+				"HL_VISIBLE_DEVICES":      strings.Join(paths[:], ","),
+				"HL_VISIBLE_DEVICES_UUID": strings.Join(uuids[:], ","),
+			},
 		})
 	}
 
@@ -251,7 +264,7 @@ func (m *HabanalabsDevicePlugin) Serve() error {
 	}
 	log.Println("Starting to serve on", m.socket)
 
-	err = m.Register(pluginapi.KubeletSocket, resourceName)
+	err = m.Register()
 	if err != nil {
 		log.Printf("Could not register device plugin: %s", err)
 		m.Stop()
