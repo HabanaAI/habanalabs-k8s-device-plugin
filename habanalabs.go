@@ -60,8 +60,10 @@ func NewDeviceManager(devType string) *DeviceManager {
 }
 
 func Test() {
-	device, err := hlml.DeviceHandleByIndex(1)
-	serial, err := device.SerialNumber()
+	device, _ := hlml.DeviceHandleByIndex(1)
+	serial, _ := device.SerialNumber()
+
+	log.Printf("Serial: %s", serial)
 }
 
 func (dm *DeviceManager) Devices() []*pluginapi.Device {

@@ -16,7 +16,7 @@
 
 package main
 
-// #cgo LDFLAGS: "./hlml/libhlml.a" -ldl -Wl,--unresolved-symbols=ignore-in-object-files
+// #cgo LDFLAGS: -lhlml -ldl -Wl,--unresolved-symbols=ignore-in-object-files
 // #include "hlml/hlml.h"
 // #include <stdlib.h>
 import "C"
