@@ -23,7 +23,8 @@ import (
 	"strings"
 	"time"
 
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
 )
 
 type DevID string
@@ -56,6 +57,11 @@ type DeviceManager struct {
 
 func NewDeviceManager(devType string) *DeviceManager {
 	return &DeviceManager{devType: devType}
+}
+
+func Test() {
+	device, err := hlml.DeviceHandleByIndex(1)
+	serial, err := device.SerialNumber()
 }
 
 func (dm *DeviceManager) Devices() []*pluginapi.Device {

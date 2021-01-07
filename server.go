@@ -28,7 +28,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 // HabanalabsDevicePlugin implements the Kubernetes device plugin API
@@ -50,6 +50,7 @@ func NewHabanalabsDevicePlugin(resourceManager ResourceManager, resourceName str
 		resourceName:    resourceName,
 		socket:          socket,
 
+
 		stop:   make(chan interface{}),
 		health: make(chan *pluginapi.Device),
 
@@ -60,7 +61,15 @@ func NewHabanalabsDevicePlugin(resourceManager ResourceManager, resourceName str
 
 // GetDevicePluginOptions returns the device plugin options.
 func (m *HabanalabsDevicePlugin) GetDevicePluginOptions(context.Context, *pluginapi.Empty) (*pluginapi.DevicePluginOptions, error) {
-	return &pluginapi.DevicePluginOptions{}, nil
+	return &pluginapi.DevicePluginOptions{
+		PreStartRequired:	true,
+		GetPreferredAllocationAvailable: false,
+	}, nil
+}
+
+func (m *HabanalabsDevicePlugin) GetPreferredAllocation(ctx context.Context, rqt *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+	response := &pluginapi.PreferredAllocationResponse{}
+	return response, nil
 }
 
 // dial establishes the gRPC communication with the registered device plugin.
