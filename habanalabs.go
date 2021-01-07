@@ -18,13 +18,11 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"strings"
 	"time"
 
-	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	hlml "github.com/HabanaAI/gohlml"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 type DevID string
@@ -59,31 +57,23 @@ func NewDeviceManager(devType string) *DeviceManager {
 	return &DeviceManager{devType: devType}
 }
 
-func Test() {
-	device, _ := hlml.DeviceHandleByIndex(1)
-	serial, _ := device.SerialNumber()
-
-	log.Printf("Serial: %s", serial)
-}
-
 func (dm *DeviceManager) Devices() []*pluginapi.Device {
-	NumOfDevices, err := hlmlGetDeviceCount()
+	NumOfDevices, err := hlml.DeviceCount()
 	checkErr(err)
 
 	var devs []*pluginapi.Device
 
 	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlmlNewDevice(i)
+		newDevice, err := hlml.DeviceHandleByIndex(i)
 		checkErr(err)
 
-		dID := fmt.Sprintf("%x", newDevice.PCI.DeviceID)
-		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
-			continue
-		}
-		log.Printf("%s device identified", strings.ToUpper(dm.devType))
+		serial, err := newDevice.SerialNumber()
+		checkErr(err)
+
+		log.Printf("%s device identified", serial)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.UUID,
+			ID:     serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)
@@ -102,26 +92,6 @@ func checkErr(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
 	}
-}
-
-func getAllDevices() []*pluginapi.Device {
-	NumOfDevices, err := hlmlGetDeviceCount()
-	checkErr(err)
-
-	var devs []*pluginapi.Device
-
-	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlmlNewDevice(i)
-		checkErr(err)
-
-		dev := pluginapi.Device{
-			ID:     newDevice.UUID,
-			Health: pluginapi.Healthy,
-		}
-		devs = append(devs, &dev)
-	}
-
-	return devs
 }
 
 func deviceExists(devs []*pluginapi.Device, id string) bool {
@@ -143,11 +113,11 @@ func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
 }
 
 func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
-	eventSet := hlmlNewEventSet()
-	defer hlmlDeleteEventSet(eventSet)
+	eventSet := hlml.HlmlNewEventSet()
+	defer hlml.HlmlDeleteEventSet(eventSet)
 
 	for _, d := range devs {
-		err := hlmlRegisterEventForDevice(eventSet, HlmlCriticalError, d.ID)
+		err := hlml.HlmlRegisterEventForDevice(eventSet, hlml.HlmlCriticalError, d.ID)
 		if err != nil {
 			log.Printf("Failed to register critical events for %s, error %s. Marking it unhealthy", d.ID, err)
 
@@ -163,31 +133,16 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		default:
 		}
 
-		e, err := hlmlWaitForEvent(eventSet, 5000)
+		e, err := hlml.HlmlWaitForEvent(eventSet, 5000)
 		if err != nil {
 			log.Println(err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		if e.Etype != HlmlCriticalError {
+		if e.Etype != hlml.HlmlCriticalError {
 			continue
 		}
 
-		if e.UUID == nil || len(*e.UUID) == 0 {
-			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
-			// All devices are unhealthy
-			for _, d := range devs {
-				xids <- d
-			}
-			continue
-		}
-
-		for _, d := range devs {
-			if d.ID == *e.UUID {
-				log.Printf("XidCriticalError: Xid=%d on AIP=%s, the device will go unhealthy", e.Etype, d.ID)
-				xids <- d
-			}
-		}
 	}
 }

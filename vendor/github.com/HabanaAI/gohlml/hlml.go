@@ -406,14 +406,14 @@ func SystemDriverVersion() (string, error) {
 	return string(driver), nil
 }
 
-func hlmlNewEventSet() EventSet {
+func HlmlNewEventSet() EventSet {
 	var set C.hlml_event_set_t
 	C.hlml_event_set_create(&set)
 
 	return EventSet{set}
 }
 
-func hlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
+func HlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
 
 	deviceHandle, err := DeviceHandleByUUID(uuid)
 
@@ -429,11 +429,11 @@ func hlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
 	return nil
 }
 
-func hlmlDeleteEventSet(es EventSet) {
+func HlmlDeleteEventSet(es EventSet) {
 	C.hlml_event_set_free(es.set)
 }
 
-func hlmlWaitForEvent(es EventSet, timeout uint) (Event, error) {
+func HlmlWaitForEvent(es EventSet, timeout uint) (Event, error) {
 	var data C.hlml_event_data_t
 
 	r := C.hlml_event_set_wait(es.set, &data, C.uint(timeout))

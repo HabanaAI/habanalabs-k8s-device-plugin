@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, HabanaLabs Ltd.  All rights reserved.
+ * Copyright (c) 2021, HabanaLabs Ltd.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package main
 import (
 	"context"
 	"fmt"
+	hlml "github.com/HabanaAI/gohlml"
 	"log"
 	"net"
 	"os"
@@ -191,13 +192,13 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			log.Printf("device == %s", device)
 
-			deviceHandle, err := hlmlDeviceGetHandleByUUID(id)
+			deviceHandle, err := hlml.DeviceHandleByUUID(id)
 			checkErr(err)
 
-			minor, err := hlmlDeviceGetMinorNumber(deviceHandle)
+			minor, err := deviceHandle.MinorNumber()
 			checkErr(err)
 
-			path := fmt.Sprintf("/dev/hl%d", *minor)
+			path := fmt.Sprintf("/dev/hl%d", minor)
 			paths = append(paths, path)
 			uuids = append(uuids, id)
 
@@ -210,7 +211,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			devicesList = append(devicesList, ds)
 
-			path = fmt.Sprintf("/dev/hl_controlD%d", *minor)
+			path = fmt.Sprintf("/dev/hl_controlD%d", minor)
 
 			log.Printf("path == %s", path)
 
