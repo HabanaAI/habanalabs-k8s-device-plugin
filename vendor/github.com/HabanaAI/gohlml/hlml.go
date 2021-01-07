@@ -22,6 +22,7 @@ package gohlml
 // #include <stdlib.h>
 import "C"
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"unsafe"
@@ -111,6 +112,28 @@ func DeviceCount() (uint, error) {
 	return uint(NumOfDevices), errorString(rc)
 }
 
+// GetAllDevices fetches a list of all the devices found
+func GetAllDevices() ([]Device, error) {
+
+	numDevices, err := DeviceCount()
+	if err != nil {
+		return nil, err
+	}
+
+	var devices []Device
+
+	for i := uint(0); i < numDevices ; i++ {
+		newDevice, err := DeviceHandleByIndex(i)
+		if err!= nil {
+			return nil, err
+		}
+		devices = append(devices, newDevice)
+
+	}
+
+	return devices, nil
+}
+
 // DeviceHandleByIndex gets a handle to a particular device by index
 func DeviceHandleByIndex(idx uint) (Device, error) {
 	var dev C.hlml_device_t
@@ -129,6 +152,7 @@ func DeviceHandleByUUID(uuid string) (Device, error) {
 	rc := C.hlml_device_get_handle_by_UUID(cstr, &dev)
 	return Device{dev}, errorString(rc)
 }
+
 
 // MinorNumber returns Minor number:
 // minor
@@ -316,6 +340,26 @@ func (d Device) SerialNumber() (string, error) {
 
 	rc := C.hlml_device_get_serial(d.dev, &serial[0], szUUID)
 	return C.GoString(&serial[0]), errorString(rc)
+}
+
+// DeviceBySerial gets a handle to a particular device by Serial Number
+func DeviceBySerial(serial string) (*Device, error) {
+
+	devices, err := GetAllDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, d := range(devices) {
+
+		serial_number, _ := d.SerialNumber()
+
+		if serial_number == serial {
+			return &d, nil
+		}
+	}
+
+	return nil, errors.New("Could not find Device")
 }
 
 // BoardID returns an ID for the PCB board
