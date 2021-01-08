@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	hlml "github.com/HabanaAI/gohlml"
 	"log"
@@ -136,7 +137,11 @@ func (m *HabanalabsDevicePlugin) Stop() error {
 
 // Register registers the device plugin for the given resourceName with Kubelet.
 func (m *HabanalabsDevicePlugin) Register() error {
-	conn, err := dial(pluginapi.KubeletSocket, 5*time.Second)
+	ctx := context.Background()
+	conn, err := grpc.DialContext(ctx, pluginapi.KubeletSocket, grpc.WithInsecure(),
+		grpc.WithContextDialer(func(ctx context.Context, addr string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, "unix", addr)
+		}))
 	if err != nil {
 		return err
 	}
@@ -149,10 +154,11 @@ func (m *HabanalabsDevicePlugin) Register() error {
 		ResourceName: m.resourceName,
 	}
 
-	_, err = client.Register(context.Background(), reqt)
+	_, err = client.Register(ctx, reqt)
 	if err != nil {
-		return err
+		return errors.New("Cannot register to kubelet service")
 	}
+
 	return nil
 }
 
@@ -192,7 +198,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			log.Printf("device == %s", device)
 
-			deviceHandle, err := hlml.DeviceHandleByUUID(id)
+			deviceHandle, err := hlml.DeviceBySerial(id)
 			checkErr(err)
 
 			minor, err := deviceHandle.MinorNumber()

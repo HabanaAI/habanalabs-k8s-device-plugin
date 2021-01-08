@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, HabanaLabs Ltd.  All rights reserved.
+ * Copyright (c) 2021, HabanaLabs Ltd.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,7 +38,7 @@ func main() {
 	log.Println("Starting Habana device plugin manager")
 	log.Println("Loading HLML")
 	if err := hlml.Initialize(); err != nil {
-		log.Printf("Failed to initialize HLML: %s", err)
+		log.Fatalf("Failed to initialize HLML: %s", err)
 		return
 	}
 	defer func() { log.Println("Shutdown of HLML returned:", hlml.Shutdown()) }()
@@ -62,7 +62,7 @@ func main() {
 	case "goya", "gaudi":
 		devicePlugin = NewHabanalabsDevicePlugin(NewDeviceManager(strings.ToUpper(dev)), "habana.ai/"+dev, pluginapi.DevicePluginPath+dev+"_habanalabs.sock")
 	default:
-		err = fmt.Errorf("Unknown device type: %s", dev)
+		err = fmt.Errorf("unknown device type: %s", dev)
 	}
 	if err != nil {
 		log.Println(err.Error())
