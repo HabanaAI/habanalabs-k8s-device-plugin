@@ -2,3 +2,4 @@
 src
 bin/
 .idea
+.DS_Store
