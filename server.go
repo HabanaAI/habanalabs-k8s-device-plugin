@@ -198,7 +198,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			log.Printf("device == %s", device)
 
-			deviceHandle, err := hlml.DeviceBySerial(id)
+			deviceHandle, err := hlml.DeviceHandleBySerial(id)
 			checkErr(err)
 
 			minor, err := deviceHandle.MinorNumber()

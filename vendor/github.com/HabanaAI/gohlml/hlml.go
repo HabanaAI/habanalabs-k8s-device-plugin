@@ -343,7 +343,7 @@ func (d Device) SerialNumber() (string, error) {
 }
 
 // DeviceBySerial gets a handle to a particular device by Serial Number
-func DeviceBySerial(serial string) (*Device, error) {
+func DeviceHandleBySerial(serial string) (*Device, error) {
 
 	devices, err := GetAllDevices()
 	if err != nil {
@@ -459,7 +459,7 @@ func HlmlNewEventSet() EventSet {
 
 func HlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
 
-	deviceHandle, err := DeviceHandleByUUID(uuid)
+	deviceHandle, err := DeviceHandleBySerial(uuid)
 
 	if err != nil {
 		return fmt.Errorf("hlml: device not found")
