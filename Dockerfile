@@ -30,8 +30,15 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
 COPY . .
 
-RUN export CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files' && \
-    go install
+RUN go install
+
+FROM debian:stretch-slim
+
+RUN apt update && apt install -y --no-install-recommends \
+            pciutils && \
+    rm -rf /var/lib/apt/lists/*
 
 
+COPY --from=build /opt/habanalabs/go/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
 
+CMD ["habanalabs-device-plugin"]
