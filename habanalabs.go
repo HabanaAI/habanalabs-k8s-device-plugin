@@ -28,20 +28,9 @@ import (
 type DevID string
 
 const (
-	GOYA  DevID = "GOYA"
-	GAUDI DevID = "GAUDI"
+	GOYA 	DevID = "HL-102"
+	GAUDI 	DevID = "HL-205"
 )
-
-// Device ID 16bit LSB
-func (e DevID) String() string {
-	switch e {
-	case GOYA:
-		return "0001"
-	case GAUDI:
-		return "1000"
-	}
-	return "N/A"
-}
 
 // ResourceManager interface
 type ResourceManager interface {
@@ -50,10 +39,10 @@ type ResourceManager interface {
 
 // DeviceManager string devType: GOYA / GAUDI
 type DeviceManager struct {
-	devType string
+	devType DevID
 }
 
-func NewDeviceManager(devType string) *DeviceManager {
+func NewDeviceManager(devType DevID) *DeviceManager {
 	return &DeviceManager{devType: devType}
 }
 
@@ -64,14 +53,25 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	var devs []*pluginapi.Device
 
 	for i := uint(0); i < NumOfDevices; i++ {
+
 		newDevice, err := hlml.DeviceHandleByIndex(i)
 		checkErr(err)
+
+		deviceType, err := newDevice.Name()
+		checkErr(err)
+
+		if DevID(deviceType) != dm.devType {
+			continue
+		}
 
 		serial, err := newDevice.SerialNumber()
 		checkErr(err)
 
-		log.Printf("%s device identified", serial)
+		uuid, err := newDevice.UUID()
+		checkErr(err)
 
+		log.Printf("%s \t serial: %s \t UUID: %s", deviceType, serial, uuid)
+		
 		dev := pluginapi.Device{
 			ID:     serial,
 			Health: pluginapi.Healthy,
@@ -87,15 +87,6 @@ func checkErr(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
 	}
-}
-
-func deviceExists(devs []*pluginapi.Device, id string) bool {
-	for _, d := range devs {
-		if d.ID == id {
-			return true
-		}
-	}
-	return false
 }
 
 func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {

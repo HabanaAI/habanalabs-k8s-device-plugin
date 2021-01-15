@@ -58,10 +58,12 @@ func main() {
 	flag.Parse()
 
 	dev := strings.TrimSpace(*devType)
+	dev = strings.ToUpper(*devType)
+
 	switch dev {
-	case "goya", "gaudi":
+	case "GOYA", "GAUDI":
 		devicePlugin = NewHabanalabsDevicePlugin(
-			NewDeviceManager(strings.ToUpper(dev)),
+			NewDeviceManager(DevID(dev)),
 			fmt.Sprintf("habana.ai/%s", dev),
 			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, dev),
 		)
