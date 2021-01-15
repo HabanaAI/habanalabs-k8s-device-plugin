@@ -39,6 +39,6 @@ RUN apt update && apt install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 
-COPY --from=build /opt/habanalabs/go/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
+COPY --from=build /opt/habanalabs/go/bin/habanalabs-k8s-device-plugin /usr/bin/habanalabs-device-plugin
 
 CMD ["habanalabs-device-plugin"]
