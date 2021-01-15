@@ -60,7 +60,11 @@ func main() {
 	dev := strings.TrimSpace(*devType)
 	switch dev {
 	case "goya", "gaudi":
-		devicePlugin = NewHabanalabsDevicePlugin(NewDeviceManager(strings.ToUpper(dev)), "habana.ai/"+dev, pluginapi.DevicePluginPath+dev+"_habanalabs.sock")
+		devicePlugin = NewHabanalabsDevicePlugin(
+			NewDeviceManager(strings.ToUpper(dev)),
+			fmt.Sprintf("habana.ai/%s", dev),
+			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, dev),
+		)
 	default:
 		err = fmt.Errorf("unknown device type: %s", dev)
 	}
