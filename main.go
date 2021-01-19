@@ -46,7 +46,7 @@ func main() {
 	log.Println("Starting FS watcher notifications of filesystem changes")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
 	if err != nil {
-		log.Println("Failed to created FS watcher")
+		log.Fatalln("Failed to create FS watcher")
 		os.Exit(1)
 	}
 	defer watcher.Close()
@@ -58,14 +58,20 @@ func main() {
 	flag.Parse()
 
 	dev := strings.TrimSpace(*devType)
-	dev = strings.ToUpper(*devType)
+	dev = strings.ToUpper(dev)
 
 	switch dev {
-	case "GOYA", "GAUDI":
+	case "GOYA":
 		devicePlugin = NewHabanalabsDevicePlugin(
-			NewDeviceManager(DevID(dev)),
-			fmt.Sprintf("habana.ai/%s", dev),
-			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, dev),
+			NewDeviceManager(GOYA),
+			fmt.Sprintf("habana.ai/%s", GOYA),
+			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, GOYA),
+		)
+	case "GAUDI":
+		devicePlugin = NewHabanalabsDevicePlugin(
+			NewDeviceManager(GAUDI),
+			fmt.Sprintf("habana.ai/%s", GAUDI),
+			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, GAUDI),
 		)
 	default:
 		err = fmt.Errorf("unknown device type: %s", dev)

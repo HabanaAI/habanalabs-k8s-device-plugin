@@ -50,6 +50,8 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	NumOfDevices, err := hlml.DeviceCount()
 	checkErr(err)
 
+	log.Printf("Discovering devices of type %s", dm.devType)
+
 	var devs []*pluginapi.Device
 
 	for i := uint(0); i < NumOfDevices; i++ {
