@@ -17,6 +17,7 @@ extern "C" {
 #define PCI_DOMAIN_LEN		5
 #define PCI_ADDR_LEN		((PCI_DOMAIN_LEN) + 10)
 #define PCI_LINK_INFO_LEN	10
+#define HL_FIELD_MAX_SIZE	32
 
 #define HLML_DEVICE_MAC_MAX_ADDRESSES	20
 
@@ -26,6 +27,10 @@ extern "C" {
 #define HLML_EVENT_CRITICAL_ERR		(1 << 1)
 /* Event about changes in clock rate */
 #define HLML_EVENT_CLOCK_RATE		(1 << 2)
+
+/* Bit masks representing all supported clocks throttling reasons */
+#define HLML_CLOCKS_THROTTLE_REASON_POWER	(1 << 0)
+#define HLML_CLOCKS_THROTTLE_REASON_THERMAL	(1 << 1)
 
 /* Enum for returned values of the different APIs */
 typedef enum hlml_return {
@@ -131,6 +136,15 @@ typedef enum hlml_err_inject {
 	HLML_ERR_INJECT_COUNT
 } hlml_err_inject_t;
 
+/*
+ * pcb_ver - The device's PCB version
+ * pcb_assembly_ver - The device's PCB Assembly version
+ */
+typedef struct hlml_pcb_info {
+	char pcb_ver[HL_FIELD_MAX_SIZE];
+	char pcb_assembly_ver[HL_FIELD_MAX_SIZE];
+} hlml_pcb_info_t;
+
 typedef void* hlml_device_t;
 
 typedef struct hlml_event_data {
@@ -144,6 +158,12 @@ typedef struct hlml_mac_info {
 	unsigned char addr[ETHER_ADDR_LEN];
 	int id;
 } hlml_mac_info_t;
+
+typedef enum hlml_pcie_util_counter {
+	HLML_PCIE_UTIL_TX_BYTES = 0,
+	HLML_PCIE_UTIL_RX_BYTES = 1,
+	HLML_PCIE_UTIL_COUNT,
+} hlml_pcie_util_counter_t;
 
 /* supported APIs */
 hlml_return_t hlml_init(void);
@@ -235,6 +255,32 @@ hlml_return_t hlml_device_get_mac_info(hlml_device_t device,
 				       unsigned int *actual_mac_count);
 
 hlml_return_t hlml_device_err_inject(hlml_device_t device, hlml_err_inject_t err_type);
+
+hlml_return_t hlml_device_get_hl_revision(hlml_device_t device, int *hl_revision);
+
+hlml_return_t hlml_device_get_pcb_info(hlml_device_t device, hlml_pcb_info_t *pcb);
+
+hlml_return_t hlml_device_get_serial(hlml_device_t device, char *serial, unsigned int length);
+
+hlml_return_t hlml_device_get_board_id(hlml_device_t device, unsigned int* board_id);
+
+hlml_return_t hlml_device_get_pcie_throughput(hlml_device_t device,
+					      hlml_pcie_util_counter_t counter,
+					      unsigned int *value);
+
+hlml_return_t hlml_device_get_pcie_replay_counter(hlml_device_t device, unsigned int *value);
+
+hlml_return_t hlml_device_get_curr_pcie_link_generation(hlml_device_t device,
+							unsigned int *curr_link_gen);
+
+hlml_return_t hlml_device_get_curr_pcie_link_width(hlml_device_t device,
+						   unsigned int *curr_link_width);
+
+hlml_return_t hlml_device_get_current_clocks_throttle_reasons(hlml_device_t device,
+		unsigned long long *clocks_throttle_reasons);
+
+hlml_return_t hlml_device_get_total_energy_consumption(hlml_device_t device,
+		unsigned long long *energy);
 
 #ifdef __cplusplus
 }   //extern "C"

@@ -55,8 +55,9 @@ type Device struct {
 	handle
 	pluginapi.Device
 
-	Path string
-	UUID string
+	Path 	string
+	UUID 	string
+	Serial	string
 	PCI  PCIInfo
 }
 
@@ -158,6 +159,13 @@ func hlmlDeviceGetUUID(h handle) (*string, error) {
 	return stringPtr(&uuid[0]), errorString(rc)
 }
 
+func hlmlDeviceGetSerial(h handle) (*string, error) {
+	var serial [szUUID]C.char
+
+	rc := C.hlml_device_get_serial(h.dev, &serial[0], szUUID)
+	return stringPtr(&serial[0]), errorString(rc)
+}
+
 func hlmlDeviceGetPciInfo(h handle) (*string, error) {
 	var pci C.hlml_pci_info_t
 
@@ -189,12 +197,15 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 	checkErr(err)
 	uuid, err := hlmlDeviceGetUUID(deviceHandle)
 	checkErr(err)
+	serial, err := hlmlDeviceGetSerial(deviceHandle)
+	checkErr(err)
 
 	path := fmt.Sprintf("/dev/hl%d", *minor)
 
 	device = &Device{
 		handle: deviceHandle,
 		UUID:   *uuid,
+		Serial:	*serial,
 		Path:   path,
 		PCI: PCIInfo{
 			BusID:    *busid,
