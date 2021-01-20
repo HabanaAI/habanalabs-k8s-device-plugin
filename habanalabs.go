@@ -75,7 +75,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		log.Printf("%s device identified", strings.ToUpper(dm.devType))
 
 		dev := pluginapi.Device{
-			ID:     newDevice.UUID,
+			ID:     newDevice.Serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)
@@ -107,7 +107,7 @@ func getAllDevices() []*pluginapi.Device {
 		checkErr(err)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.UUID,
+			ID:     newDevice.Serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)
