@@ -60,24 +60,20 @@ func main() {
 	dev := strings.TrimSpace(*devType)
 	dev = strings.ToUpper(dev)
 
-	switch dev {
-	case "GOYA":
-		devicePlugin = NewHabanalabsDevicePlugin(
-			NewDeviceManager(GOYA),
-			fmt.Sprintf("habana.ai/%s", GOYA),
-			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, GOYA),
-		)
-	case "GAUDI":
-		devicePlugin = NewHabanalabsDevicePlugin(
-			NewDeviceManager(GAUDI),
-			fmt.Sprintf("habana.ai/%s", GAUDI),
-			fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, GAUDI),
-		)
-	default:
+	deviceType, ok := deviceTypeDict[dev]
+	if !ok {
 		err = fmt.Errorf("unknown device type: %s", dev)
+		os.Exit(1)
 	}
+
+	devicePlugin = NewHabanalabsDevicePlugin(
+		NewDeviceManager(deviceType),
+		fmt.Sprintf("habana.ai/%s", deviceType),
+		fmt.Sprintf("%s%s_habanalabs.sock", pluginapi.DevicePluginPath, deviceType),
+	)
+
 	if err != nil {
-		log.Println(err.Error())
+		log.Fatalln(err.Error())
 		os.Exit(1)
 	}
 

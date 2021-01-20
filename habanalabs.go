@@ -32,6 +32,11 @@ const (
 	GAUDI 	DevID = "HL-205"
 )
 
+var deviceTypeDict = map[string]DevID{
+	"GOYA": 	GOYA,
+	"GAUDI": 	GAUDI,
+}
+
 // ResourceManager interface
 type ResourceManager interface {
 	Devices() []*pluginapi.Device
@@ -78,6 +83,15 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 			ID:     serial,
 			Health: pluginapi.Healthy,
 		}
+
+		//dev.Topology = &pluginapi.TopologyInfo{
+		//	Nodes: []*pluginapi.NUMANode{
+		//		&pluginapi.NUMANode{
+		//			ID: int64(*(newDevice.CPUAffinity)),
+		//		}
+		//	},
+		//}
+
 		devs = append(devs, &dev)
 	}
 
