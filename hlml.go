@@ -21,6 +21,7 @@ package main
 // #include <stdlib.h>
 import "C"
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 
@@ -143,6 +144,24 @@ func hlmlDeviceGetHandleByUUID(uuid string) (handle, error) {
 
 	rc := C.hlml_device_get_handle_by_UUID(cstr, &dev)
 	return handle{dev}, errorString(rc)
+}
+
+// consider replacing with a direct call to the C API if it is added later
+func hlmlDeviceGetHandleBySerial(serial string) (*handle, error) {
+	numDevices, err := hlmlGetDeviceCount()
+	checkErr(err)
+
+	for i := uint(0); i < numDevices; i++ {
+		handle, err := hlmlDeviceGetHandleByIndex(i)
+		checkErr(err)
+
+		currentSerial, err := hlmlDeviceGetSerial(handle)
+		checkErr(err)
+
+		if *currentSerial == serial { return &handle, nil }
+	}
+
+	return nil, errors.New("could not find device with serial number")
 }
 
 func hlmlDeviceGetMinorNumber(h handle) (*uint, error) {
