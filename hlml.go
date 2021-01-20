@@ -241,9 +241,9 @@ func hlmlNewEventSet() EventSet {
 	return EventSet{set}
 }
 
-func hlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
+func hlmlRegisterEventForDevice(es EventSet, event int, serial string) error {
 
-	deviceHandle, err := hlmlDeviceGetHandleByUUID(uuid)
+	deviceHandle, err := hlmlDeviceGetHandleBySerial(serial)
 
 	if err != nil {
 		return fmt.Errorf("hlml: device not found")
