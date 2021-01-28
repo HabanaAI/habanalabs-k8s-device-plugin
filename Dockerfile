@@ -12,17 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:18.04 as build
-
-RUN apt update && apt install -y --no-install-recommends \
-            ca-certificates \
-            g++ \
-            wget && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV GOLANG_VERSION 1.15
-RUN wget -nv -O - https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz \
-    | tar -C /usr/local -xz
+FROM golang:1.15 as builder
 
 ENV GOPATH /opt/habanalabs/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
@@ -30,8 +20,9 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
 COPY . .
 
-RUN export CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files' && \
-    go install -ldflags="-w -s" -v habanalabs-device-plugin
+RUN go mod vendor
+
+RUN go install
 
 FROM debian:stretch-slim
 
@@ -39,6 +30,6 @@ RUN apt update && apt install -y --no-install-recommends \
             pciutils && \
     rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /opt/habanalabs/go/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
+COPY --from=builder /opt/habanalabs/go/bin/habanalabs-k8s-device-plugin /usr/bin/habanalabs-device-plugin
 
 CMD ["habanalabs-device-plugin"]
