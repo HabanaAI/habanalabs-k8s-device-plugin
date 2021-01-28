@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -41,6 +42,10 @@ type HabanalabsDevicePlugin struct {
 	stop   chan interface{}
 	health chan *pluginapi.Device
 	server *grpc.Server
+}
+
+func (m *HabanalabsDevicePlugin) GetPreferredAllocation(ctx context.Context, request *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+	return nil, errors.New("GetPreferredAllocation should not be called as this device plugin doesn't implement it")
 }
 
 // NewHabanalabsDevicePlugin returns an initialized HabanalabsDevicePlugin
