@@ -1,0 +1,4 @@
+[submodule "vendor/github.com/HabanaAI/gohlml"]
+	path = vendor/github.com/HabanaAI/gohlml
+	url = https://rfdickerson-h@github.com/rfdickerson-h/gohlml.git
+	branch = feature/MAT-322
