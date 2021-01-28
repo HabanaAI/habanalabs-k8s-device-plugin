@@ -2,3 +2,5 @@
 src
 bin/
 pkg/
+vendor/
+!vendor/github.com/HabanaAI/gohlml
