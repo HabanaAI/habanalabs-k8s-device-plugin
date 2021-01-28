@@ -24,6 +24,7 @@ import (
 	"time"
 
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
 )
 
 type DevID string
@@ -69,6 +70,8 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	for i := uint(0); i < NumOfDevices; i++ {
 		newDevice, err := hlmlNewDevice(i)
 		checkErr(err)
+
+		hlml.DeviceHandleByIndex(i)
 
 		dID := fmt.Sprintf("%x", newDevice.PCI.DeviceID)
 		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
