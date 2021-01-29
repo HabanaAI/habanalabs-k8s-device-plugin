@@ -29,8 +29,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	hlml "github.com/HabanaAI/gohlml"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 // HabanalabsDevicePlugin implements the Kubernetes device plugin API
