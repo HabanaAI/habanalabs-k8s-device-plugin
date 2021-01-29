@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc"
 
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
 )
 
 // HabanalabsDevicePlugin implements the Kubernetes device plugin API
@@ -187,13 +188,13 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			log.Printf("device == %s", device)
 
-			deviceHandle, err := hlmlDeviceGetHandleBySerial(id)
+			deviceHandle, err := hlml.DeviceHandleBySerial(id)
 			checkErr(err)
 
-			minor, err := hlmlDeviceGetMinorNumber(*deviceHandle)
+			minor, err := deviceHandle.MinorNumber()
 			checkErr(err)
 
-			path := fmt.Sprintf("/dev/hl%d", *minor)
+			path := fmt.Sprintf("/dev/hl%d", minor)
 			paths = append(paths, path)
 			uuids = append(uuids, id)
 
@@ -206,7 +207,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			devicesList = append(devicesList, ds)
 
-			path = fmt.Sprintf("/dev/hl_controlD%d", *minor)
+			path = fmt.Sprintf("/dev/hl_controlD%d", minor)
 
 			log.Printf("path == %s", path)
 
