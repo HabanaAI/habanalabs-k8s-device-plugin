@@ -34,8 +34,6 @@ COPY . .
 RUN go mod vendor
 RUN go install
 
-#RUN go install -ldflags="-w -s" -v habanalabs-device-plugin
-#
 FROM debian:stretch-slim
 
 RUN apt update && apt install -y --no-install-recommends \
