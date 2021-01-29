@@ -60,30 +60,37 @@ func NewDeviceManager(devType string) *DeviceManager {
 }
 
 func (dm *DeviceManager) Devices() []*pluginapi.Device {
-	NumOfDevices, err := hlmlGetDeviceCount()
+	NumOfDevices, err := hlml.DeviceCount()
 	checkErr(err)
 
 	var devs []*pluginapi.Device
 
 	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlmlNewDevice(i)
+		newDevice, err := hlml.DeviceHandleByIndex(i)
 		checkErr(err)
 
-		hlml.DeviceHandleByIndex(i)
+		pciBusID, err := newDevice.PCIBusID()
+		checkErr(err)
 
-		dID := fmt.Sprintf("%x", newDevice.PCI.DeviceID)
+		serial, err := newDevice.SerialNumber()
+		checkErr(err)
+
+		uuid, err := newDevice.UUID()
+		checkErr(err)
+
+		dID := fmt.Sprintf("%x", pciBusID)
 		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
 			continue
 		}
 		log.Printf(
 			"device %s,\tserial %s,\tuuid %s",
 			strings.ToUpper(dm.devType),
-			newDevice.Serial,
-			newDevice.UUID,
+			serial,
+			uuid,
 		)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.Serial,
+			ID:     serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)
@@ -105,17 +112,20 @@ func checkErr(err error) {
 }
 
 func getAllDevices() []*pluginapi.Device {
-	NumOfDevices, err := hlmlGetDeviceCount()
+	NumOfDevices, err := hlml.DeviceCount()
 	checkErr(err)
 
 	var devs []*pluginapi.Device
 
 	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlmlNewDevice(i)
+		newDevice, err := hlml.DeviceHandleByIndex(i)
+		checkErr(err)
+
+		serial, err := newDevice.SerialNumber()
 		checkErr(err)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.Serial,
+			ID:     serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)
@@ -143,11 +153,12 @@ func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
 }
 
 func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
-	eventSet := hlmlNewEventSet()
-	defer hlmlDeleteEventSet(eventSet)
+	eventSet := hlml.NewEventSet()
+	defer hlml.DeleteEventSet(eventSet)
 
 	for _, d := range devs {
-		err := hlmlRegisterEventForDevice(eventSet, HlmlCriticalError, d.ID)
+
+		err := hlml.RegisterEventForDevice(eventSet, hlml.HlmlCriticalError, d.ID)
 		if err != nil {
 			log.Printf("Failed to register critical events for %s, error %s. Marking it unhealthy", d.ID, err)
 
@@ -163,14 +174,14 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		default:
 		}
 
-		e, err := hlmlWaitForEvent(eventSet, 5000)
+		e, err := hlml.WaitForEvent(eventSet, 5000)
 		if err != nil {
 			log.Println(err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		if e.Etype != HlmlCriticalError {
+		if e.Etype != hlml.HlmlCriticalError {
 			continue
 		}
 
