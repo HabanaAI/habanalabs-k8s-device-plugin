@@ -29,28 +29,19 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
 
-COPY go.mod .
-COPY go.sum .
-COPY vendor/github.com/HabanaAI/gohlml/ vendor/github.com/HabanaAI/gohlml/
-RUN go mod download
+COPY . .
 
-COPY habanalabs.go .
-COPY hlml.go .
-COPY main.go .
-COPY server.go .
-COPY watcher.go .
-COPY hlml/ hlml/
+RUN go mod vendor
+RUN go install
 
-#RUN go build
-#RUN go build
-##RUN go install -ldflags="-w -s" -v habanalabs-device-plugin
+#RUN go install -ldflags="-w -s" -v habanalabs-device-plugin
 #
-#FROM debian:stretch-slim
-#
-#RUN apt update && apt install -y --no-install-recommends \
-#            pciutils && \
-#    rm -rf /var/lib/apt/lists/*
-#
-#COPY --from=builder /opt/habanalabs/go/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
-#
-#CMD ["habanalabs-device-plugin"]
+FROM debian:stretch-slim
+
+RUN apt update && apt install -y --no-install-recommends \
+            pciutils && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/habanalabs/go/bin/habanalabs-k8s-device-plugin /usr/bin/habanalabs-device-plugin
+
+CMD ["habanalabs-device-plugin"]
