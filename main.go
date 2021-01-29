@@ -27,6 +27,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
 )
 
 func main() {
@@ -36,11 +37,11 @@ func main() {
 
 	log.Println("Starting Habana device plugin manager")
 	log.Println("Loading HLML")
-	if err := hlmlInit(); err != nil {
+	if err := hlml.Initialize(); err != nil {
 		log.Printf("Failed to initialize HLML: %s", err)
 		return
 	}
-	defer func() { log.Println("Shutdown of HLML returned:", hlmlShutdown()) }()
+	defer func() { log.Println("Shutdown of HLML returned:", hlml.Shutdown()) }()
 
 	log.Println("Starting FS watcher notifications of filesystem changes")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
