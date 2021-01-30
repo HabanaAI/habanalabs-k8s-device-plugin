@@ -72,10 +72,15 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
 			continue
 		}
-		log.Printf("%s device identified", strings.ToUpper(dm.devType))
+		log.Printf(
+			"device %s,\tserial %s,\tuuid %s",
+			strings.ToUpper(dm.devType),
+			newDevice.Serial,
+			newDevice.UUID,
+		)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.UUID,
+			ID:     newDevice.Serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)
@@ -107,7 +112,7 @@ func getAllDevices() []*pluginapi.Device {
 		checkErr(err)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.UUID,
+			ID:     newDevice.Serial,
 			Health: pluginapi.Healthy,
 		}
 		devs = append(devs, &dev)

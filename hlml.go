@@ -21,6 +21,7 @@ package main
 // #include <stdlib.h>
 import "C"
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 
@@ -55,8 +56,9 @@ type Device struct {
 	handle
 	pluginapi.Device
 
-	Path string
-	UUID string
+	Path 	string
+	UUID 	string
+	Serial	string
 	PCI  PCIInfo
 }
 
@@ -144,6 +146,24 @@ func hlmlDeviceGetHandleByUUID(uuid string) (handle, error) {
 	return handle{dev}, errorString(rc)
 }
 
+// consider replacing with a direct call to the C API if it is added later
+func hlmlDeviceGetHandleBySerial(serial string) (*handle, error) {
+	numDevices, err := hlmlGetDeviceCount()
+	checkErr(err)
+
+	for i := uint(0); i < numDevices; i++ {
+		handle, err := hlmlDeviceGetHandleByIndex(i)
+		checkErr(err)
+
+		currentSerial, err := hlmlDeviceGetSerial(handle)
+		checkErr(err)
+
+		if *currentSerial == serial { return &handle, nil }
+	}
+
+	return nil, errors.New("could not find device with serial number")
+}
+
 func hlmlDeviceGetMinorNumber(h handle) (*uint, error) {
 	var minor C.uint
 
@@ -156,6 +176,13 @@ func hlmlDeviceGetUUID(h handle) (*string, error) {
 
 	rc := C.hlml_device_get_uuid(h.dev, &uuid[0], szUUID)
 	return stringPtr(&uuid[0]), errorString(rc)
+}
+
+func hlmlDeviceGetSerial(h handle) (*string, error) {
+	var serial [szUUID]C.char
+
+	rc := C.hlml_device_get_serial(h.dev, &serial[0], szUUID)
+	return stringPtr(&serial[0]), errorString(rc)
 }
 
 func hlmlDeviceGetPciInfo(h handle) (*string, error) {
@@ -189,12 +216,15 @@ func hlmlNewDevice(idx uint) (device *Device, err error) {
 	checkErr(err)
 	uuid, err := hlmlDeviceGetUUID(deviceHandle)
 	checkErr(err)
+	serial, err := hlmlDeviceGetSerial(deviceHandle)
+	checkErr(err)
 
 	path := fmt.Sprintf("/dev/hl%d", *minor)
 
 	device = &Device{
 		handle: deviceHandle,
 		UUID:   *uuid,
+		Serial:	*serial,
 		Path:   path,
 		PCI: PCIInfo{
 			BusID:    *busid,
@@ -211,9 +241,9 @@ func hlmlNewEventSet() EventSet {
 	return EventSet{set}
 }
 
-func hlmlRegisterEventForDevice(es EventSet, event int, uuid string) error {
+func hlmlRegisterEventForDevice(es EventSet, event int, serial string) error {
 
-	deviceHandle, err := hlmlDeviceGetHandleByUUID(uuid)
+	deviceHandle, err := hlmlDeviceGetHandleBySerial(serial)
 
 	if err != nil {
 		return fmt.Errorf("hlml: device not found")
