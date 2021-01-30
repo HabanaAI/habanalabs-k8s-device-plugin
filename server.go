@@ -182,10 +182,10 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			log.Printf("device == %s", device)
 
-			deviceHandle, err := hlmlDeviceGetHandleByUUID(id)
+			deviceHandle, err := hlmlDeviceGetHandleBySerial(id)
 			checkErr(err)
 
-			minor, err := hlmlDeviceGetMinorNumber(deviceHandle)
+			minor, err := hlmlDeviceGetMinorNumber(*deviceHandle)
 			checkErr(err)
 
 			path := fmt.Sprintf("/dev/hl%d", *minor)
