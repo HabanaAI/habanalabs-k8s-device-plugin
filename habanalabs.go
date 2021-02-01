@@ -198,5 +198,24 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 			continue
 		}
 
+		dev, err := hlml.DeviceHandleBySerial(e.Serial)
+		uuid, err := dev.UUID()
+
+		if err != nil || len(uuid) == 0 {
+			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
+			// All devices are unhealthy
+			for _, d := range devs {
+				xids <- d
+			}
+			continue
+		}
+
+		for _, d := range devs {
+			if d.ID == uuid {
+				log.Printf("XidCriticalError: Xid=%d on AIP=%s, the device will go unhealthy", e.Etype, d.ID)
+				xids <- d
+			}
+		}
+
 	}
 }
