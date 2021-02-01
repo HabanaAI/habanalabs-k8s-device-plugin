@@ -1,4 +1,0 @@
-[submodule "gohlml"]
-	path = gohlml
-	url = https://rfdickerson-h@github.com/rfdickerson-h/gohlml.git
-	branch = feature/MAT-322
