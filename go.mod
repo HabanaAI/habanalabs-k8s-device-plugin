@@ -6,5 +6,7 @@ require (
 	github.com/HabanaAI/gohlml v1.3.0
 	github.com/fsnotify/fsnotify v1.4.9
 	google.golang.org/grpc v1.35.0
-	k8s.io/kubelet v0.20.2
+	k8s.io/kubelet v0.19.7
 )
+
+replace github.com/HabanaAI/gohlml v1.3.0 => ./pkg/gohlml
