@@ -97,11 +97,13 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 			Health: pluginapi.Healthy,
 		}
 
-		if newDevice.CPUAffinity != nil {
+		cpuAffinity, err := newDevice.NumaNode()
+
+		if cpuAffinity != nil {
 			dev.Topology = &pluginapi.TopologyInfo{
 				Nodes: []*pluginapi.NUMANode{
 					&pluginapi.NUMANode{
-						ID: int64(*(newDevice.CPUAffinity)),
+						ID: int64(*(cpuAffinity)),
 					},
 				},
 			}
