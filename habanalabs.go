@@ -67,11 +67,12 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 
 	var devs []*pluginapi.Device
 
+	log.Println("Finding devices...")
 	for i := uint(0); i < NumOfDevices; i++ {
 		newDevice, err := hlml.DeviceHandleByIndex(i)
 		checkErr(err)
 
-		pciBusID, err := newDevice.PCIBusID()
+		pciID, err := newDevice.PCIID()
 		checkErr(err)
 
 		serial, err := newDevice.SerialNumber()
@@ -80,16 +81,25 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		uuid, err := newDevice.UUID()
 		checkErr(err)
 
-		dID := fmt.Sprintf("%x", pciBusID)
+		pciBusID, _ := newDevice.PCIBusID()
+
+		dID := fmt.Sprintf("%x", pciID)
+
 		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
+			log.Printf("Not correct device type")
 			continue
 		}
 
 		log.Printf(
-			"device %s,\tserial %s,\tuuid %s",
+			"device: %s,\tserial: %s,\tuuid: %s",
 			strings.ToUpper(dm.devType),
 			serial,
 			uuid,
+		)
+
+		log.Printf("pci id: %s\t pci bus id: %s",
+			dID,
+			pciBusID,
 		)
 
 		dev := pluginapi.Device{
@@ -98,13 +108,12 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		}
 
 		cpuAffinity, err := newDevice.NumaNode()
+		checkErr(err)
 
 		if cpuAffinity != nil {
+			log.Printf("cpu affinity: %d", *cpuAffinity)
 			dev.Topology = &pluginapi.TopologyInfo{
-				Nodes: []*pluginapi.NUMANode{
-					&pluginapi.NUMANode{
-						ID: int64(*(cpuAffinity)),
-					},
+				Nodes: []*pluginapi.NUMANode{{ID: int64(*cpuAffinity)},
 				},
 			}
 		}
@@ -124,38 +133,6 @@ func checkErr(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
 	}
-}
-
-func getAllDevices() []*pluginapi.Device {
-	NumOfDevices, err := hlml.DeviceCount()
-	checkErr(err)
-
-	var devs []*pluginapi.Device
-
-	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlml.DeviceHandleByIndex(i)
-		checkErr(err)
-
-		serial, err := newDevice.SerialNumber()
-		checkErr(err)
-
-		dev := pluginapi.Device{
-			ID:     serial,
-			Health: pluginapi.Healthy,
-		}
-		devs = append(devs, &dev)
-	}
-
-	return devs
-}
-
-func deviceExists(devs []*pluginapi.Device, id string) bool {
-	for _, d := range devs {
-		if d.ID == id {
-			return true
-		}
-	}
-	return false
 }
 
 func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
