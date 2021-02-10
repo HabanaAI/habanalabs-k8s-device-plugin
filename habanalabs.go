@@ -55,10 +55,12 @@ type DeviceManager struct {
 	devType string
 }
 
+// NewDeviceManager Init Manager
 func NewDeviceManager(devType string) *DeviceManager {
 	return &DeviceManager{devType: devType}
 }
 
+// Devices Get Habana Device
 func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	NumOfDevices, err := hlml.DeviceCount()
 	checkErr(err)
@@ -82,6 +84,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
 			continue
 		}
+
 		log.Printf(
 			"device %s,\tserial %s,\tuuid %s",
 			strings.ToUpper(dm.devType),
@@ -92,6 +95,16 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		dev := pluginapi.Device{
 			ID:     serial,
 			Health: pluginapi.Healthy,
+		}
+
+		if newDevice.CPUAffinity != nil {
+			dev.Topology = &pluginapi.TopologyInfo{
+				Nodes: []*pluginapi.NUMANode{
+					&pluginapi.NUMANode{
+						ID: int64(*(newDevice.CPUAffinity)),
+					},
+				},
+			}
 		}
 		devs = append(devs, &dev)
 	}
