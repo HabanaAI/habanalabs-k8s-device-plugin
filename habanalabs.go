@@ -123,12 +123,6 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	return devs
 }
 
-func check(err error) {
-	if err != nil {
-		log.Panicln("Fatal:", err)
-	}
-}
-
 func checkErr(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
