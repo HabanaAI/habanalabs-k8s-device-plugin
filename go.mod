@@ -9,4 +9,5 @@ require (
 	k8s.io/kubelet v0.19.7
 )
 
-replace github.com/HabanaAI/gohlml v1.3.0 => ./pkg/gohlml
+// uncomment below if developing with a local copy of gohlml
+//replace github.com/HabanaAI/gohlml v1.3.0 => ./pkg/gohlml
