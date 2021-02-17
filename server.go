@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -28,7 +29,8 @@ import (
 
 	"google.golang.org/grpc"
 
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 // HabanalabsDevicePlugin implements the Kubernetes device plugin API
@@ -41,6 +43,10 @@ type HabanalabsDevicePlugin struct {
 	stop   chan interface{}
 	health chan *pluginapi.Device
 	server *grpc.Server
+}
+
+func (m *HabanalabsDevicePlugin) GetPreferredAllocation(ctx context.Context, request *pluginapi.PreferredAllocationRequest) (*pluginapi.PreferredAllocationResponse, error) {
+	return nil, errors.New("GetPreferredAllocation should not be called as this device plugin doesn't implement it")
 }
 
 // NewHabanalabsDevicePlugin returns an initialized HabanalabsDevicePlugin
@@ -182,13 +188,13 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			log.Printf("device == %s", device)
 
-			deviceHandle, err := hlmlDeviceGetHandleBySerial(id)
+			deviceHandle, err := hlml.DeviceHandleBySerial(id)
 			checkErr(err)
 
-			minor, err := hlmlDeviceGetMinorNumber(*deviceHandle)
+			minor, err := deviceHandle.MinorNumber()
 			checkErr(err)
 
-			path := fmt.Sprintf("/dev/hl%d", *minor)
+			path := fmt.Sprintf("/dev/hl%d", minor)
 			paths = append(paths, path)
 			uuids = append(uuids, id)
 
@@ -201,7 +207,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			}
 			devicesList = append(devicesList, ds)
 
-			path = fmt.Sprintf("/dev/hl_controlD%d", *minor)
+			path = fmt.Sprintf("/dev/hl_controlD%d", minor)
 
 			log.Printf("path == %s", path)
 

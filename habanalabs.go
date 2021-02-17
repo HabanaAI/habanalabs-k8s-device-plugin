@@ -23,7 +23,8 @@ import (
 	"strings"
 	"time"
 
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
 )
 
 type DevID string
@@ -54,80 +55,78 @@ type DeviceManager struct {
 	devType string
 }
 
+// NewDeviceManager Init Manager
 func NewDeviceManager(devType string) *DeviceManager {
 	return &DeviceManager{devType: devType}
 }
 
+// Devices Get Habana Device
 func (dm *DeviceManager) Devices() []*pluginapi.Device {
-	NumOfDevices, err := hlmlGetDeviceCount()
+	NumOfDevices, err := hlml.DeviceCount()
 	checkErr(err)
 
 	var devs []*pluginapi.Device
 
+	log.Println("Finding devices...")
 	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlmlNewDevice(i)
+		newDevice, err := hlml.DeviceHandleByIndex(i)
 		checkErr(err)
 
-		dID := fmt.Sprintf("%x", newDevice.PCI.DeviceID)
+		pciID, err := newDevice.PCIID()
+		checkErr(err)
+
+		serial, err := newDevice.SerialNumber()
+		checkErr(err)
+
+		uuid, err := newDevice.UUID()
+		checkErr(err)
+
+		pciBusID, _ := newDevice.PCIBusID()
+
+		dID := fmt.Sprintf("%x", pciID)
+
 		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
+			log.Printf("Not correct device type")
 			continue
 		}
+
 		log.Printf(
-			"device %s,\tserial %s,\tuuid %s",
+			"device: %s,\tserial: %s,\tuuid: %s",
 			strings.ToUpper(dm.devType),
-			newDevice.Serial,
-			newDevice.UUID,
+			serial,
+			uuid,
+		)
+
+		log.Printf("pci id: %s\t pci bus id: %s",
+			dID,
+			pciBusID,
 		)
 
 		dev := pluginapi.Device{
-			ID:     newDevice.Serial,
+			ID:     serial,
 			Health: pluginapi.Healthy,
+		}
+
+		cpuAffinity, err := newDevice.NumaNode()
+		checkErr(err)
+
+		if cpuAffinity != nil {
+			log.Printf("cpu affinity: %d", *cpuAffinity)
+			dev.Topology = &pluginapi.TopologyInfo{
+				Nodes: []*pluginapi.NUMANode{{ID: int64(*cpuAffinity)},
+				},
+			}
 		}
 		devs = append(devs, &dev)
 	}
 
 	return devs
-}
-
-func check(err error) {
-	if err != nil {
-		log.Panicln("Fatal:", err)
-	}
 }
 
 func checkErr(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
 	}
-}
-
-func getAllDevices() []*pluginapi.Device {
-	NumOfDevices, err := hlmlGetDeviceCount()
-	checkErr(err)
-
-	var devs []*pluginapi.Device
-
-	for i := uint(0); i < NumOfDevices; i++ {
-		newDevice, err := hlmlNewDevice(i)
-		checkErr(err)
-
-		dev := pluginapi.Device{
-			ID:     newDevice.Serial,
-			Health: pluginapi.Healthy,
-		}
-		devs = append(devs, &dev)
-	}
-
-	return devs
-}
-
-func deviceExists(devs []*pluginapi.Device, id string) bool {
-	for _, d := range devs {
-		if d.ID == id {
-			return true
-		}
-	}
-	return false
 }
 
 func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
@@ -140,11 +139,12 @@ func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
 }
 
 func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
-	eventSet := hlmlNewEventSet()
-	defer hlmlDeleteEventSet(eventSet)
+	eventSet := hlml.NewEventSet()
+	defer hlml.DeleteEventSet(eventSet)
 
 	for _, d := range devs {
-		err := hlmlRegisterEventForDevice(eventSet, HlmlCriticalError, d.ID)
+
+		err := hlml.RegisterEventForDevice(eventSet, hlml.HlmlCriticalError, d.ID)
 		if err != nil {
 			log.Printf("Failed to register critical events for %s, error %s. Marking it unhealthy", d.ID, err)
 
@@ -160,18 +160,21 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		default:
 		}
 
-		e, err := hlmlWaitForEvent(eventSet, 5000)
+		e, err := hlml.WaitForEvent(eventSet, 5000)
 		if err != nil {
 			log.Println(err)
 			time.Sleep(2 * time.Second)
 			continue
 		}
 
-		if e.Etype != HlmlCriticalError {
+		if e.Etype != hlml.HlmlCriticalError {
 			continue
 		}
 
-		if e.UUID == nil || len(*e.UUID) == 0 {
+		dev, err := hlml.DeviceHandleBySerial(e.Serial)
+		uuid, err := dev.UUID()
+
+		if err != nil || len(uuid) == 0 {
 			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
 			// All devices are unhealthy
 			for _, d := range devs {
@@ -181,10 +184,11 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		}
 
 		for _, d := range devs {
-			if d.ID == *e.UUID {
+			if d.ID == uuid {
 				log.Printf("XidCriticalError: Xid=%d on AIP=%s, the device will go unhealthy", e.Etype, d.ID)
 				xids <- d
 			}
 		}
+
 	}
 }

@@ -34,7 +34,7 @@ spec:
     spec:
       priorityClassName: "system-node-critical"
       containers:
-      - image: habanai/k8s-device-plugin:0.9.1
+      - image: habanai/k8s-device-plugin:0.15.0
         name: habanalabs-device-plugin-ctr
         command: ["habanalabs-device-plugin"]
         args: ["--dev_type", " gaudi"]

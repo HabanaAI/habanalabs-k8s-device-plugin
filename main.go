@@ -26,7 +26,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	pluginapi "k8s.io/kubernetes/pkg/kubelet/apis/deviceplugin/v1beta1"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
+	hlml "github.com/HabanaAI/gohlml"
 )
 
 func main() {
@@ -34,15 +35,15 @@ func main() {
 	var err error
 	restart := true
 
-	log.Println("Starting Habana device plugin manager")
-	log.Println("Loading HLML")
-	if err := hlmlInit(); err != nil {
+	log.Println("Habana device plugin manager")
+	log.Println("Loading HLML...")
+	if err := hlml.Initialize(); err != nil {
 		log.Printf("Failed to initialize HLML: %s", err)
 		return
 	}
-	defer func() { log.Println("Shutdown of HLML returned:", hlmlShutdown()) }()
+	defer func() { log.Println("Shutdown of HLML returned:", hlml.Shutdown()) }()
 
-	log.Println("Starting FS watcher notifications of filesystem changes")
+	log.Println("Starting FS watcher...")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
 	if err != nil {
 		log.Println("Failed to created FS watcher")
@@ -50,7 +51,7 @@ func main() {
 	}
 	defer watcher.Close()
 
-	log.Println("Starting OS watcher for system signal notifications")
+	log.Println("Starting OS watcher...")
 	sigs := newOSWatcher(syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	devType := flag.String("dev_type", "goya", "Device type which can be either goya (default) or gaudi")
@@ -73,7 +74,13 @@ L:
 		if restart {
 			devicePlugin.Stop()
 
-			if len(devicePlugin.Devices()) == 0 {
+			numDevices, err := hlml.DeviceCount()
+			if err != nil {
+				log.Fatalln("Could not get number of devices")
+				continue
+			}
+
+			if numDevices == 0 {
 				continue
 			}
 

@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: habanalabs-goya-demo0
+  name: habanalabs-demo-goya
 spec:
   nodeSelector:
     accelerator: habanalabs
   containers:
     - name: habana-ai-base-container
-      image: habanai/goya-demo:0.15.0
+      image: habanaai/demo-goya-installer:0.15.0
       workingDir: /home/user1
       securityContext:
         capabilities:
