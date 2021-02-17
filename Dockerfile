@@ -17,6 +17,7 @@ FROM ubuntu:18.04 as builder
 RUN apt update && apt install -y --no-install-recommends \
             ca-certificates \
             g++ \
+            git \
             wget && \
     rm -rf /var/lib/apt/lists/*
 
