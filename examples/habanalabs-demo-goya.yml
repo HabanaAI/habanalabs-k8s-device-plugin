@@ -7,7 +7,7 @@ spec:
     accelerator: habanalabs
   containers:
     - name: habana-ai-base-container
-      image: artifactory.habana-labs.com/docker-local/0.9.0/ubuntu18.04/habanalabs/demo-goya-installer:0.9.0-99
+      image: habanaai/demo-goya-installer:0.15.0
       workingDir: /home/user1
       securityContext:
         capabilities:
