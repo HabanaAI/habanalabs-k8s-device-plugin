@@ -178,6 +178,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 	response := pluginapi.AllocateResponse{ContainerResponses: []*pluginapi.ContainerAllocateResponse{}}
 	for _, req := range reqs.ContainerRequests {
 		var devicesList []*pluginapi.DeviceSpec
+		netConfig := make([]string, 0, len(req.DevicesIDs))
 		paths := make([]string, 0, len(req.DevicesIDs))
 		uuids := make([]string, 0, len(req.DevicesIDs))
 
@@ -197,6 +198,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			path := fmt.Sprintf("/dev/hl%d", minor)
 			paths = append(paths, path)
 			uuids = append(uuids, id)
+			netConfig = append(netConfig, fmt.Sprintf("%d", minor))
 
 			log.Printf("path == %s", path)
 
@@ -222,6 +224,7 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 		response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
 			Devices: devicesList,
 			Envs: map[string]string{
+				"HABANA_VISIBLE_DEVICES":  strings.Join(netConfig[:], ","),
 				"HL_VISIBLE_DEVICES":      strings.Join(paths[:], ","),
 				"HL_VISIBLE_DEVICES_UUID": strings.Join(uuids[:], ","),
 			},
