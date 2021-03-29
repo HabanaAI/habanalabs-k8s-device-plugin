@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package main
 
 import (
@@ -159,6 +158,9 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 			return
 		default:
 		}
+
+		// Wait 60 seconds between health checks
+		time.Sleep(60 * time.Second)
 
 		e, err := hlml.WaitForEvent(eventSet, 5000)
 		if err != nil {
