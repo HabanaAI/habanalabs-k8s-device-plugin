@@ -160,9 +160,9 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		}
 
 		// Wait 60 seconds between health checks
-		time.Sleep(60 * time.Second)
+		time.Sleep(5 * time.Second)
 
-		e, err := hlml.WaitForEvent(eventSet, 5000)
+		e, err := hlml.WaitForEvent(eventSet, 1000)
 		if err != nil {
 			log.Println(err)
 			time.Sleep(2 * time.Second)
