@@ -74,20 +74,20 @@ $ kubectl create -f habanalabs-device-plugin-gaudi.yaml
 #### Build
 Option 1, pull the prebuilt image from [Docker Hub](https://hub.docker.com/r/habanai/k8s-device-plugin):
 ```shell
-$ docker pull habanai/k8s-device-plugin:0.9.1
+$ docker pull habanai/k8s-device-plugin:0.10.0
 ```
 
 Option 2, build without cloning the repository:
 ```shell
-$ docker build --network=host --no-cache -t habanai/k8s-device-plugin:0.9.1  habanalabs-k8s-device-plugin
+$ docker build --network=host --no-cache -t habanai/k8s-device-plugin:0.10.0  habanalabs-k8s-device-plugin
 ```
 
 Option 3, if you want to modify the code:
 ```shell
 https://github.com/HabDevops/habanalabs-k8s-device-plugin
 $ git clone https://github.com/HabDevops/habanalabs-k8s-device-plugin.git && cd habanalabs-k8s-device-plugin
-$ git checkout v0.9.1
-$ docker build -t habanai/k8s-device-plugin:0.9.1 .
+$ git checkout v0.10.0
+$ docker build -t habanai/k8s-device-plugin:0.10.0 .
 ```
 
 #### Deploy as Daemon Set:
@@ -96,6 +96,10 @@ $ kubectl create -f habanalabs-device-plugin.yaml
 ```
 
 ## Changelog
+
+### Version 0.9.1
+- New HLML SW 0.10.0
+- Add support for Habana container-runtime
 
 ### Version 0.9.1
 - New HLML SW 0.9.1-43 debian9.8
