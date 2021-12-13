@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	hlml "github.com/HabanaAI/gohlml"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 type DevID string
@@ -42,6 +42,31 @@ func (e DevID) String() string {
 		return "1000"
 	}
 	return "N/A"
+}
+
+func checkDevID(dID string, dType string) bool {
+	if dType == "GOYA" {
+		if strings.HasSuffix(dID, "0001") {
+			return true
+		}
+	}
+	if dType == "GAUDI" {
+		if strings.HasSuffix(dID, "1000") {
+			return true
+		}
+		if strings.HasSuffix(dID, "1001") {
+			return true
+		}
+		// PCI_IDS_GAUDI_SEC
+		if strings.HasSuffix(dID, "1010") {
+			return true
+		}
+		// PCI_IDS_GAUDI_HL2000M_SEC
+		if strings.HasSuffix(dID, "1011") {
+			return true
+		}
+	}
+	return false
 }
 
 // ResourceManager interface
@@ -84,7 +109,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 
 		dID := fmt.Sprintf("%x", pciID)
 
-		if !strings.HasSuffix(dID, DevID(dm.devType).String()) {
+		if !checkDevID(dID, dm.devType) {
 			log.Printf("Not correct device type")
 			continue
 		}
@@ -112,8 +137,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		if cpuAffinity != nil {
 			log.Printf("cpu affinity: %d", *cpuAffinity)
 			dev.Topology = &pluginapi.TopologyInfo{
-				Nodes: []*pluginapi.NUMANode{{ID: int64(*cpuAffinity)},
-				},
+				Nodes: []*pluginapi.NUMANode{{ID: int64(*cpuAffinity)}},
 			}
 		}
 		devs = append(devs, &dev)
@@ -159,7 +183,7 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		default:
 		}
 
-		// Wait 60 seconds between health checks
+		// Wait between health checks
 		time.Sleep(5 * time.Second)
 
 		e, err := hlml.WaitForEvent(eventSet, 1000)

@@ -91,6 +91,10 @@ func (m *HabanalabsDevicePlugin) Start() error {
 		return err
 	}
 
+        if m.stop == nil {
+                m.stop = make(chan interface{})
+        }
+
 	//  initialize Devices
 	m.devs = m.Devices()
 
@@ -126,6 +130,7 @@ func (m *HabanalabsDevicePlugin) Stop() error {
 	m.server.Stop()
 	m.server = nil
 	close(m.stop)
+	m.stop = nil
 
 	return m.cleanup()
 }
