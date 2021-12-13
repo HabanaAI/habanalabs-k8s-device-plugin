@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+ARG BASE_IMAGE
+FROM $BASE_IMAGE
+
 FROM ubuntu:18.04 as builder
 
 RUN apt update && apt install -y --no-install-recommends \
@@ -29,6 +32,9 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
 
+COPY --from=0 /usr/lib/habanalabs /usr/lib/habanalabs
+COPY --from=0 /usr/include/habanalabs /usr/include/habanalabs
+RUN echo "/usr/lib/habanalabs/" >> /etc/ld.so.conf.d/habanalabs.conf
 COPY . .
 
 RUN go mod vendor
