@@ -26,48 +26,10 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
-type DevID string
-
 const (
-	GOYA  DevID = "GOYA"
-	GAUDI DevID = "GAUDI"
+	GOYA  = "GOYA"
+	GAUDI = "GAUDI"
 )
-
-// Device ID 16bit LSB
-func (e DevID) String() string {
-	switch e {
-	case GOYA:
-		return "0001"
-	case GAUDI:
-		return "1000"
-	}
-	return "N/A"
-}
-
-func checkDevID(dID string, dType string) bool {
-	if dType == "GOYA" {
-		if strings.HasSuffix(dID, "0001") {
-			return true
-		}
-	}
-	if dType == "GAUDI" {
-		if strings.HasSuffix(dID, "1000") {
-			return true
-		}
-		if strings.HasSuffix(dID, "1001") {
-			return true
-		}
-		// PCI_IDS_GAUDI_SEC
-		if strings.HasSuffix(dID, "1010") {
-			return true
-		}
-		// PCI_IDS_GAUDI_HL2000M_SEC
-		if strings.HasSuffix(dID, "1011") {
-			return true
-		}
-	}
-	return false
-}
 
 // ResourceManager interface
 type ResourceManager interface {
@@ -87,32 +49,27 @@ func NewDeviceManager(devType string) *DeviceManager {
 // Devices Get Habana Device
 func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	NumOfDevices, err := hlml.DeviceCount()
-	checkErr(err)
+	mustErr(err)
 
 	var devs []*pluginapi.Device
 
 	log.Println("Finding devices...")
 	for i := uint(0); i < NumOfDevices; i++ {
 		newDevice, err := hlml.DeviceHandleByIndex(i)
-		checkErr(err)
+		mustErr(err)
 
 		pciID, err := newDevice.PCIID()
-		checkErr(err)
+		mustErr(err)
 
 		serial, err := newDevice.SerialNumber()
-		checkErr(err)
+		mustErr(err)
 
 		uuid, err := newDevice.UUID()
-		checkErr(err)
+		mustErr(err)
 
 		pciBusID, _ := newDevice.PCIBusID()
 
 		dID := fmt.Sprintf("%x", pciID)
-
-		if !checkDevID(dID, dm.devType) {
-			log.Printf("Not correct device type")
-			continue
-		}
 
 		log.Printf(
 			"device: %s,\tserial: %s,\tuuid: %s",
@@ -132,7 +89,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		}
 
 		cpuAffinity, err := newDevice.NumaNode()
-		checkErr(err)
+		mustErr(err)
 
 		if cpuAffinity != nil {
 			log.Printf("cpu affinity: %d", *cpuAffinity)
@@ -146,7 +103,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 	return devs
 }
 
-func checkErr(err error) {
+func mustErr(err error) {
 	if err != nil {
 		log.Panicln("Fatal:", err)
 	}
@@ -198,8 +155,16 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		}
 
 		dev, err := hlml.DeviceHandleBySerial(e.Serial)
-		uuid, err := dev.UUID()
+		if err != nil {
+			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
+			// All devices are unhealthy
+			for _, d := range devs {
+				xids <- d
+			}
+			continue
+		}
 
+		uuid, err := dev.UUID()
 		if err != nil || len(uuid) == 0 {
 			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
 			// All devices are unhealthy

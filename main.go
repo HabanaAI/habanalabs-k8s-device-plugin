@@ -17,8 +17,6 @@
 package main
 
 import (
-	"flag"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -26,8 +24,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 
-	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 	hlml "github.com/HabanaAI/gohlml"
+	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
 func main() {
@@ -54,20 +52,17 @@ func main() {
 	log.Println("Starting OS watcher...")
 	sigs := newOSWatcher(syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
-	devType := flag.String("dev_type", "goya", "Device type which can be either goya (default) or gaudi")
-	flag.Parse()
-
-	dev := strings.TrimSpace(*devType)
-	switch dev {
-	case "goya", "gaudi":
-		devicePlugin = NewHabanalabsDevicePlugin(NewDeviceManager(strings.ToUpper(dev)), "habana.ai/"+dev, pluginapi.DevicePluginPath+dev+"_habanalabs.sock")
-	default:
-		err = fmt.Errorf("Unknown device type: %s", dev)
-	}
+	dev, err := hlml.GetDeviceTypeName()
 	if err != nil {
-		log.Println(err.Error())
+		log.Println("failed detecting Habana's devices on the system", err)
 		os.Exit(1)
 	}
+
+	devicePlugin = NewHabanalabsDevicePlugin(
+		NewDeviceManager(strings.ToUpper(dev)),
+		"habana.ai/"+dev,
+		pluginapi.DevicePluginPath+dev+"_habanalabs.sock",
+	)
 
 L:
 	for {
