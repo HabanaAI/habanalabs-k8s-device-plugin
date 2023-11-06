@@ -13,39 +13,51 @@
 # limitations under the License.
 
 ARG BASE_IMAGE
-FROM $BASE_IMAGE
+FROM ${BASE_IMAGE} as builder
 
-FROM ubuntu:18.04 as builder
-
-RUN apt update && apt install -y --no-install-recommends \
-            ca-certificates \
-            g++ \
-            wget && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV GOLANG_VERSION 1.15
+ENV GOLANG_VERSION 1.20
 RUN wget -nv -O - https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz \
     | tar -C /usr/local -xz
+
 
 ENV GOPATH /opt/habanalabs/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
+# go-hlml must be download before building the image, since it is hosted in gerrit,
+# and gerrit doesn't support go modules in our version. Then it is copied as
+# a sibling to the device plugin folder
+WORKDIR /opt/habanalabs/go/src/go-hlml
+COPY go-hlml/ .
+
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
+COPY go.mod go.sum ./
+RUN go mod download
 
-COPY --from=0 /usr/lib/habanalabs /usr/lib/habanalabs
-COPY --from=0 /usr/include/habanalabs /usr/include/habanalabs
-RUN echo "/usr/lib/habanalabs/" >> /etc/ld.so.conf.d/habanalabs.conf
 COPY . .
+RUN go mod tidy
 
-RUN go mod vendor
-RUN go install
+RUN go build -buildvcs=false -o bin/habanalabs-device-plugin .
 
-FROM debian:stretch-slim
+
+FROM artifactory-kfs.habana-labs.com/docker-developers/base/ubuntu:focal
+ARG BUILD_DATE
+ARG BUILD_REF
 
 RUN apt update && apt install -y --no-install-recommends \
-            pciutils && \
-    rm -rf /var/lib/apt/lists/*
+	pciutils && \
+	rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /opt/habanalabs/go/bin/habanalabs-k8s-device-plugin /usr/bin/habanalabs-device-plugin
+COPY --from=builder /usr/lib/habanalabs /usr/lib/habanalabs
+COPY --from=builder /usr/include/habanalabs /usr/include/habanalabs
 
+RUN echo "/usr/lib/habanalabs/" >> /etc/ld.so.conf.d/habanalabs.conf
+RUN ldconfig
+
+COPY --from=builder /opt/habanalabs/go/src/habanalabs-device-plugin/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
 CMD ["habanalabs-device-plugin"]
+
+
+LABEL   image.created="${BUILD_DATE}" \
+        image.revision="${BUILD_REF}" \
+        image.title="habana-device-plugin" \
+		image.author="Habana Labs Ltd"

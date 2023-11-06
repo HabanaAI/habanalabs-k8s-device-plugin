@@ -49,7 +49,7 @@ func (m *HabanalabsDevicePlugin) GetPreferredAllocation(ctx context.Context, req
 	return nil, errors.New("GetPreferredAllocation should not be called as this device plugin doesn't implement it")
 }
 
-// NewHabanalabsDevicePlugin returns an initialized HabanalabsDevicePlugin
+// NewHabanalabsDevicePlugin returns an initialized HabanalabsDevicePlugin.
 func NewHabanalabsDevicePlugin(resourceManager ResourceManager, resourceName string, socket string) *HabanalabsDevicePlugin {
 	return &HabanalabsDevicePlugin{
 		ResourceManager: resourceManager,
@@ -71,10 +71,13 @@ func (m *HabanalabsDevicePlugin) GetDevicePluginOptions(context.Context, *plugin
 
 // dial establishes the gRPC communication with the registered device plugin.
 func dial(unixSocketPath string, timeout time.Duration) (*grpc.ClientConn, error) {
-	c, err := grpc.Dial(unixSocketPath, grpc.WithInsecure(), grpc.WithBlock(),
-		grpc.WithTimeout(timeout),
-		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
-			return net.DialTimeout("unix", addr, timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	c, err := grpc.DialContext(ctx, unixSocketPath,
+		grpc.WithInsecure(),
+		grpc.WithContextDialer(func(ctx context.Context, s string) (net.Conn, error) {
+			return net.DialTimeout("unix", s, timeout)
 		}),
 	)
 
@@ -91,9 +94,9 @@ func (m *HabanalabsDevicePlugin) Start() error {
 		return err
 	}
 
-        if m.stop == nil {
-                m.stop = make(chan interface{})
-        }
+	if m.stop == nil {
+		m.stop = make(chan interface{})
+	}
 
 	//  initialize Devices
 	m.devs = m.Devices()
@@ -186,24 +189,29 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 		netConfig := make([]string, 0, len(req.DevicesIDs))
 		paths := make([]string, 0, len(req.DevicesIDs))
 		uuids := make([]string, 0, len(req.DevicesIDs))
+		visibleModule := make([]string, 0, len(req.DevicesIDs))
 
 		for _, id := range req.DevicesIDs {
 			device := getDevice(devs, id)
 			if device == nil {
-				return nil, fmt.Errorf("Invalid request for '%s': device unknown: %s", m.resourceName, id)
+				return nil, fmt.Errorf("invalid request for %q: device unknown: %s", m.resourceName, id)
 			}
 			log.Printf("device == %s", device)
 
 			deviceHandle, err := hlml.DeviceHandleBySerial(id)
-			checkErr(err)
+			mustErr(err)
 
 			minor, err := deviceHandle.MinorNumber()
-			checkErr(err)
+			mustErr(err)
 
-			path := fmt.Sprintf("/dev/hl%d", minor)
+			moduleId, err := deviceHandle.ModuleID()
+			mustErr(err)
+
+			path := fmt.Sprintf("/dev/accel/accel%d", minor)
 			paths = append(paths, path)
 			uuids = append(uuids, id)
 			netConfig = append(netConfig, fmt.Sprintf("%d", minor))
+			visibleModule = append(visibleModule, fmt.Sprintf("%d", moduleId))
 
 			log.Printf("path == %s", path)
 
@@ -213,9 +221,26 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 				Permissions:   "rw",
 			}
 			devicesList = append(devicesList, ds)
+			path = fmt.Sprintf("/dev/accel/accel_controlD%d", minor)
+			log.Printf("path == %s", path)
 
+			ds = &pluginapi.DeviceSpec{
+				ContainerPath: path,
+				HostPath:      path,
+				Permissions:   "rw",
+			}
+			devicesList = append(devicesList, ds)
+
+			path = fmt.Sprintf("/dev/hl%d", minor)
+			log.Printf("path == %s", path)
+
+			ds = &pluginapi.DeviceSpec{
+				ContainerPath: path,
+				HostPath:      path,
+				Permissions:   "rw",
+			}
+			devicesList = append(devicesList, ds)
 			path = fmt.Sprintf("/dev/hl_controlD%d", minor)
-
 			log.Printf("path == %s", path)
 
 			ds = &pluginapi.DeviceSpec{
@@ -226,13 +251,19 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 			devicesList = append(devicesList, ds)
 		}
 
+		envMap := map[string]string{
+			"HABANA_VISIBLE_DEVICES":  strings.Join(netConfig[:], ","),
+			"HL_VISIBLE_DEVICES":      strings.Join(paths[:], ","),
+			"HL_VISIBLE_DEVICES_UUID": strings.Join(uuids[:], ","),
+		}
+
+		if len(req.DevicesIDs) < int(len(m.devs)) {
+			envMap["HABANA_VISIBLE_MODULES"] = strings.Join(visibleModule[:], ",")
+		}
+
 		response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
 			Devices: devicesList,
-			Envs: map[string]string{
-				"HABANA_VISIBLE_DEVICES":  strings.Join(netConfig[:], ","),
-				"HL_VISIBLE_DEVICES":      strings.Join(paths[:], ","),
-				"HL_VISIBLE_DEVICES_UUID": strings.Join(uuids[:], ","),
-			},
+			Envs:    envMap,
 		})
 	}
 
