@@ -3,19 +3,11 @@ kind: Pod
 metadata:
   name: hl-smi
 spec:
-  hostNetwork: true
   containers:
   - name: app
-    image: artifactory.habana-labs.com/docker-developers/base/u18/u18-base:bionic-20190307
+    image: vault.habana.ai/gaudi-docker/1.14.0/ubuntu22.04/habanalabs/pytorch-installer-2.1.1:1.14.0-493
     command: ["/bin/bash"]
     args: ["-c", "hl-smi"]
     resources:
       limits:
         habana.ai/gaudi: 1
-    volumeMounts:
-    - name: usr
-      mountPath: /usr/bin
-  volumes:
-  - name: usr
-    hostPath:
-      path: /usr/bin
