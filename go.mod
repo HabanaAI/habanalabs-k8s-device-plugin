@@ -1,6 +1,8 @@
 module github.com/HabanaAI/habanalabs-k8s-device-plugin
 
-go 1.20
+go 1.21
+
+toolchain go1.21.5
 
 require (
 	github.com/HabanaAI/gohlml v1.3.0

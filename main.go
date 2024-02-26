@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, HabanaLabs Ltd.  All rights reserved.
+ * Copyright (c) 2022, HabanaLabs Ltd.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,8 @@
 package main
 
 import (
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"syscall"
@@ -28,38 +29,63 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
+// build is overridden with an actual version in the build process.
+var build = "develop"
+
 func main() {
-	var devicePlugin *HabanalabsDevicePlugin
-	var err error
-	restart := true
-
-	log.Println("Habana device plugin manager")
-	log.Println("Loading HLML...")
-	if err := hlml.Initialize(); err != nil {
-		log.Printf("Failed to initialize HLML: %s", err)
-		return
+	log := initLogger()
+	if err := run(log); err != nil {
+		log.Error(err.Error())
+		os.Exit(1)
 	}
-	defer func() { log.Println("Shutdown of HLML returned:", hlml.Shutdown()) }()
+}
 
-	log.Println("Starting FS watcher...")
+func initLogger() *slog.Logger {
+	lvl := slog.LevelInfo
+	if os.Getenv("LOG_LEVEL") == slog.LevelDebug.String() {
+		lvl = slog.LevelDebug
+	}
+	attrs := []slog.Attr{
+		slog.String("service", "habana-device-plugin"),
+	}
+	h := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: lvl}).WithAttrs(attrs)
+	return slog.New(h)
+}
+
+func run(log *slog.Logger) error {
+	restart := true
+	log.Info("Started Habana device plugin manager", "version", build)
+
+	log.Info("Initializing HLML...")
+	if err := hlml.Initialize(); err != nil {
+		return fmt.Errorf("failed to initialize HLML: %w", err)
+	}
+	defer func() {
+		log.Info("Shutting down hlml")
+		err := hlml.Shutdown()
+		if err != nil {
+			log.Error(err.Error())
+		}
+	}()
+
+	log.Info("Starting FS watcher...")
 	watcher, err := newFSWatcher(pluginapi.DevicePluginPath)
 	if err != nil {
-		log.Println("Failed to created FS watcher")
-		os.Exit(1)
+		return fmt.Errorf("failed to create FS watcher: %w", err)
 	}
 	defer watcher.Close()
 
-	log.Println("Starting OS watcher...")
+	log.Info("Starting OS watcher...")
 	sigs := newOSWatcher(syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
 
 	dev, err := hlml.GetDeviceTypeName()
 	if err != nil {
-		log.Println("failed detecting Habana's devices on the system", err)
-		os.Exit(1)
+		return fmt.Errorf("failed detecting Habana's devices on the system: %w", err)
 	}
 
-	devicePlugin = NewHabanalabsDevicePlugin(
-		NewDeviceManager(strings.ToUpper(dev)),
+	devicePlugin := NewHabanalabsDevicePlugin(
+		log,
+		NewDeviceManager(log, strings.ToUpper(dev)),
 		"habana.ai/"+dev,
 		pluginapi.DevicePluginPath+dev+"_habanalabs.sock",
 	)
@@ -67,12 +93,14 @@ func main() {
 L:
 	for {
 		if restart {
-			devicePlugin.Stop()
+			err = devicePlugin.Stop()
+			if err != nil {
+				log.Warn("Failed stopping device plugin gracefully", "error", err)
+			}
 
 			numDevices, err := hlml.DeviceCount()
 			if err != nil {
-				log.Fatalln("Could not get number of devices")
-				continue
+				return fmt.Errorf("failed getting number of devices: %w", err)
 			}
 
 			if numDevices == 0 {
@@ -80,30 +108,33 @@ L:
 			}
 
 			if err := devicePlugin.Serve(); err != nil {
-				log.Println("Could not contact Kubelet, retrying. Did you enable the device plugin feature gate?")
-			} else {
-				restart = false
+				log.Error(err.Error())
+				return fmt.Errorf("could not contact Kubelet, retrying. Did you enable the device plugin feature gate?")
 			}
+			restart = false
 		}
 
 		select {
 		case event := <-watcher.Events:
 			if event.Name == pluginapi.KubeletSocket && event.Op&fsnotify.Create == fsnotify.Create {
-				log.Printf("inotify: %s created, restarting.", pluginapi.KubeletSocket)
+				log.Warn("Kubelet restart detected, restarting device plugin.")
 				restart = true
 			}
 		case err := <-watcher.Errors:
-			log.Printf("inotify: %s", err)
+			log.Error("Watcher error received", "error", err)
 		case s := <-sigs:
 			switch s {
 			case syscall.SIGHUP:
-				log.Println("Received SIGHUP, restarting.")
+				log.Info("Received SIGHUP, restarting.")
 				restart = true
 			default:
-				log.Printf("Received signal \"%v\", shutting down", s)
-				devicePlugin.Stop()
+				log.Info("Received OS signal. Shutting down", "signal", s)
+				if err := devicePlugin.Stop(); err != nil {
+					log.Error("Failed stopping device plugin gracefully", "error", err)
+				}
 				break L
 			}
 		}
 	}
+	return nil
 }

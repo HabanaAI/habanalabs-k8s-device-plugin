@@ -1,4 +1,4 @@
-# Copyright (c) 2019, HabanaLabs Ltd.  All rights reserved.
+# Copyright (c) 2022, HabanaLabs Ltd.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE} as builder
 
-ENV GOLANG_VERSION 1.20
+ENV GOLANG_VERSION 1.21.5
 RUN wget -nv -O - https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz \
     | tar -C /usr/local -xz
 
@@ -39,7 +39,7 @@ RUN go mod tidy
 RUN go build -buildvcs=false -o bin/habanalabs-device-plugin .
 
 
-FROM artifactory-kfs.habana-labs.com/docker-developers/base/ubuntu:focal
+FROM artifactory-kfs.habana-labs.com/docker-developers/base/ubuntu:jammy
 ARG BUILD_DATE
 ARG BUILD_REF
 
