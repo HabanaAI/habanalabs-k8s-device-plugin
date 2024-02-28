@@ -27,7 +27,6 @@ ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 # and gerrit doesn't support go modules in our version. Then it is copied as
 # a sibling to the device plugin folder
 WORKDIR /opt/habanalabs/go/src/go-hlml
-COPY go-hlml/ .
 
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
 COPY go.mod go.sum ./
@@ -39,9 +38,10 @@ RUN go mod tidy
 RUN go build -buildvcs=false -o bin/habanalabs-device-plugin .
 
 
-FROM artifactory-kfs.habana-labs.com/docker-developers/base/ubuntu:jammy
+ARG BASE_IMAGE
 ARG BUILD_DATE
 ARG BUILD_REF
+FROM ${BASE_IMAGE}
 
 RUN apt update && apt install -y --no-install-recommends \
 	pciutils && \
