@@ -65,4 +65,3 @@ body:
     attributes:
       label: Extra logs and files
       description: Please copy and paste relevant log output. This will be automatically formatted into code, so no need for backticks.
-      render: shell
