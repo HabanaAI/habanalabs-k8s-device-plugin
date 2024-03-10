@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, HabanaLabs Ltd.  All rights reserved.
+ * Copyright (c) 2022, HabanaLabs Ltd.  All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -26,61 +26,62 @@ import (
 	pluginapi "k8s.io/kubelet/pkg/apis/deviceplugin/v1beta1"
 )
 
-const (
-	GOYA  = "GOYA"
-	GAUDI = "GAUDI"
-)
-
 // ResourceManager interface
 type ResourceManager interface {
-	Devices() []*pluginapi.Device
+	Devices() ([]*pluginapi.Device, error)
 }
 
 // DeviceManager string devType: GOYA / GAUDI
 type DeviceManager struct {
+	log     *slog.Logger
 	devType string
 }
 
 // NewDeviceManager Init Manager
-func NewDeviceManager(devType string) *DeviceManager {
-	return &DeviceManager{devType: devType}
+func NewDeviceManager(log *slog.Logger, devType string) *DeviceManager {
+	return &DeviceManager{log: log, devType: devType}
 }
 
 // Devices Get Habana Device
-func (dm *DeviceManager) Devices() []*pluginapi.Device {
+func (dm *DeviceManager) Devices() ([]*pluginapi.Device, error) {
 	NumOfDevices, err := hlml.DeviceCount()
-	mustErr(err)
+	if err != nil {
+		return nil, err
+	}
 
 	var devs []*pluginapi.Device
 
-	log.Println("Finding devices...")
+	dm.log.Info("Discovering devices...")
 	for i := uint(0); i < NumOfDevices; i++ {
 		newDevice, err := hlml.DeviceHandleByIndex(i)
-		mustErr(err)
+		if err != nil {
+			return nil, err
+		}
 
 		pciID, err := newDevice.PCIID()
-		mustErr(err)
+		if err != nil {
+			return nil, err
+		}
 
 		serial, err := newDevice.SerialNumber()
-		mustErr(err)
+		if err != nil {
+			return nil, err
+		}
 
 		uuid, err := newDevice.UUID()
-		mustErr(err)
+		if err != nil {
+			return nil, err
+		}
 
 		pciBusID, _ := newDevice.PCIBusID()
-
 		dID := fmt.Sprintf("%x", pciID)
-
-		log.Printf(
-			"device: %s,\tserial: %s,\tuuid: %s",
-			strings.ToUpper(dm.devType),
-			serial,
-			uuid,
-		)
-
-		log.Printf("pci id: %s\t pci bus id: %s",
-			dID,
-			pciBusID,
+		dm.log.Info(
+			"Device found",
+			"device", strings.ToUpper(dm.devType),
+			"serial", serial,
+			"uuid", uuid,
+			"id", dID,
+			"pci_bus_id", pciBusID,
 		)
 
 		dev := pluginapi.Device{
@@ -89,10 +90,12 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		}
 
 		cpuAffinity, err := newDevice.NumaNode()
-		mustErr(err)
+		if err != nil {
+			return nil, err
+		}
 
 		if cpuAffinity != nil {
-			log.Printf("cpu affinity: %d", *cpuAffinity)
+			dm.log.Info("Device cpu affinity", "id", dID, "cpu_affinity", *cpuAffinity)
 			dev.Topology = &pluginapi.TopologyInfo{
 				Nodes: []*pluginapi.NUMANode{{ID: int64(*cpuAffinity)}},
 			}
@@ -100,13 +103,7 @@ func (dm *DeviceManager) Devices() []*pluginapi.Device {
 		devs = append(devs, &dev)
 	}
 
-	return devs
-}
-
-func mustErr(err error) {
-	if err != nil {
-		log.Panicln("Fatal:", err)
-	}
+	return devs, nil
 }
 
 func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
@@ -123,63 +120,59 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 	defer hlml.DeleteEventSet(eventSet)
 
 	for _, d := range devs {
-
 		err := hlml.RegisterEventForDevice(eventSet, hlml.HlmlCriticalError, d.ID)
 		if err != nil {
-			log.Printf("Failed to register critical events for %s, error %s. Marking it unhealthy", d.ID, err)
-
+			slog.Error("Failed registering critial event for device. Marking it unhealthy", "device_id", d.ID, "error", err)
 			xids <- d
 			continue
 		}
 	}
 
+	// TODO: provide as flag
+	healthCheckInterval := time.NewTicker(10 * time.Second)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		default:
-		}
+		case <-healthCheckInterval.C:
+			e, err := hlml.WaitForEvent(eventSet, 1000)
+			if err != nil {
+				slog.Error("hlml WaitForEvent failed", "errror", err.Error())
+				time.Sleep(2 * time.Second)
+				continue
+			}
 
-		// Wait between health checks
-		time.Sleep(5 * time.Second)
+			if e.Etype != hlml.HlmlCriticalError {
+				continue
+			}
 
-		e, err := hlml.WaitForEvent(eventSet, 1000)
-		if err != nil {
-			log.Println(err)
-			time.Sleep(2 * time.Second)
-			continue
-		}
+			dev, err := hlml.DeviceHandleBySerial(e.Serial)
+			if err != nil {
+				slog.Error("XidCriticalError: All devices will go unhealthy", "xid", e.Etype)
+				// All devices are unhealthy
+				for _, d := range devs {
+					xids <- d
+				}
+				continue
+			}
 
-		if e.Etype != hlml.HlmlCriticalError {
-			continue
-		}
+			uuid, err := dev.UUID()
+			if err != nil || len(uuid) == 0 {
+				slog.Error("XidCriticalError: All devices will go unhealthy", "xid", e.Etype)
+				// All devices are unhealthy
+				for _, d := range devs {
+					xids <- d
+				}
+				continue
+			}
 
-		dev, err := hlml.DeviceHandleBySerial(e.Serial)
-		if err != nil {
-			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
-			// All devices are unhealthy
 			for _, d := range devs {
-				xids <- d
-			}
-			continue
-		}
-
-		uuid, err := dev.UUID()
-		if err != nil || len(uuid) == 0 {
-			log.Printf("XidCriticalError: Xid=%d, All devices will go unhealthy", e.Etype)
-			// All devices are unhealthy
-			for _, d := range devs {
-				xids <- d
-			}
-			continue
-		}
-
-		for _, d := range devs {
-			if d.ID == uuid {
-				log.Printf("XidCriticalError: Xid=%d on AIP=%s, the device will go unhealthy", e.Etype, d.ID)
-				xids <- d
+				if d.ID == uuid {
+					slog.Error("XidCriticalError: the device will go unhealthy", "xid", e.Etype, "aip", d.ID)
+					xids <- d
+				}
 			}
 		}
-
 	}
 }
