@@ -12,25 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG BASE_IMAGE
-FROM ${BASE_IMAGE} as builder
+ARG VERSION=1.14.0
+ARG MINOR_VERSION=493
+ARG DIST=ubuntu22.04
+ARG REGISTRY=vault.habana.ai
 
-ENV GOLANG_VERSION 1.21.5
-RUN wget -nv -O - https://dl.google.com/go/go${GOLANG_VERSION}.linux-amd64.tar.gz \
+FROM ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.1.1:${VERSION}-${MINOR_VERSION} as builder
+
+RUN apt-get update && \
+    apt-get install -y wget make git gcc \
+    && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG GOLANG_VERSION=1.21.5
+RUN set -eux; \
+    \
+    arch="$(uname -m)"; \
+    case "${arch##*-}" in \
+        x86_64 | amd64) ARCH='amd64' ;; \
+        ppc64el | ppc64le) ARCH='ppc64le' ;; \
+        aarch64) ARCH='arm64' ;; \
+        *) echo "unsupported architecture" ; exit 1 ;; \
+    esac; \
+    wget -nv -O - https://storage.googleapis.com/golang/go${GOLANG_VERSION}.linux-${ARCH}.tar.gz \
     | tar -C /usr/local -xz
 
 
 ENV GOPATH /opt/habanalabs/go
 ENV PATH $GOPATH/bin:/usr/local/go/bin:$PATH
 
-# go-hlml must be download before building the image, since it is hosted in gerrit,
-# and gerrit doesn't support go modules in our version. Then it is copied as
-# a sibling to the device plugin folder
-WORKDIR /opt/habanalabs/go/src/go-hlml
-
 WORKDIR /opt/habanalabs/go/src/habanalabs-device-plugin
-COPY go.mod go.sum ./
-RUN go mod download
 
 COPY . .
 RUN go mod tidy
@@ -38,10 +49,13 @@ RUN go mod tidy
 RUN go build -buildvcs=false -o bin/habanalabs-device-plugin .
 
 
-ARG BASE_IMAGE
 ARG BUILD_DATE
 ARG BUILD_REF
-FROM ${BASE_IMAGE}
+
+FROM ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.1.1:${VERSION}-${MINOR_VERSION}
+
+# Remove Habana libs(compat etc) in favor of libs installed by the NVIDIA driver
+RUN apt-get --purge -y autoremove habana*
 
 RUN apt update && apt install -y --no-install-recommends \
 	pciutils && \
@@ -49,15 +63,18 @@ RUN apt update && apt install -y --no-install-recommends \
 
 COPY --from=builder /usr/lib/habanalabs /usr/lib/habanalabs
 COPY --from=builder /usr/include/habanalabs /usr/include/habanalabs
+COPY --from=builder /opt/habanalabs/go/src/habanalabs-device-plugin/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
 
 RUN echo "/usr/lib/habanalabs/" >> /etc/ld.so.conf.d/habanalabs.conf
 RUN ldconfig
 
-COPY --from=builder /opt/habanalabs/go/src/habanalabs-device-plugin/bin/habanalabs-device-plugin /usr/bin/habanalabs-device-plugin
-CMD ["habanalabs-device-plugin"]
-
-
-LABEL   image.created="${BUILD_DATE}" \
+LABEL   io.k8s.display-name="HABANA Device Plugin" \
+        vendor="HABANA" \
+        version=${VERSION} \
+        image.git-commit="${GIT_COMMIT}" \
+        image.created="${BUILD_DATE}" \
         image.revision="${BUILD_REF}" \
-        image.title="habana-device-plugin" \
-		image.author="Habana Labs Ltd"
+        summary="HABANA device plugin for Kubernetes" \
+		description="See summary"
+
+CMD ["habanalabs-device-plugin"]

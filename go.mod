@@ -5,7 +5,7 @@ go 1.21
 toolchain go1.21.5
 
 require (
-	github.com/HabanaAI/gohlml v1.6.1
+	github.com/HabanaAI/gohlml v1.14.0
 	github.com/fsnotify/fsnotify v1.4.9
 	google.golang.org/grpc v1.35.0
 	k8s.io/kubelet v0.19.7
