@@ -106,13 +106,6 @@ func (dm *DeviceManager) Devices() ([]*pluginapi.Device, error) {
 	return devs, nil
 }
 
-//
-// func mustErr(err error) {
-// 	if err != nil {
-// 		log.Panicln("Fatal:", err)
-// 	}
-// }
-
 func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
 	for _, d := range devs {
 		if d.ID == id {
