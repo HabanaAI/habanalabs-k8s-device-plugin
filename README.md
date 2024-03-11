@@ -44,12 +44,11 @@ $ docker pull vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:
 
 - To build without cloning the repository, run:
 ```shell
-$ docker build --network=host --no-cache -t habanai/k8s-device-plugin:1.14.0  habanalabs-k8s-device-plugin
+$ docker build -t vault.habana.ai/docker-k8s-device-plugin:devel -f Dockerfile https://github.com/HabanaAI/habanalabs-k8s-device-plugin.git#1.14.0
 ```
 
 - To modify the code, run: 
 ```shell
 $ git clone https://github.com/HabanaAI/habanalabs-k8s-device-plugin.git && cd habanalabs-k8s-device-plugin
-$ docker build -t habanai/k8s-device-plugin:devel .
+$ docker build -t vault.habana.ai/docker-k8s-device-plugin:devel -f Dockerfile .
 ```
-
