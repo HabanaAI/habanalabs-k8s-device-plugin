@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ARG VERSION=1.14.0
-ARG MINOR_VERSION=493
+ARG VERSION=1.15.0
+ARG MINOR_VERSION=479
 ARG DIST=ubuntu22.04
 ARG REGISTRY=vault.habana.ai
 
-FROM ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.1.1:${VERSION}-${MINOR_VERSION} as builder
+FROM ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.2.0:${VERSION}-${MINOR_VERSION} as builder
 
 RUN apt-get update && \
     apt-get install -y wget make git gcc \
@@ -52,7 +52,7 @@ RUN go build -buildvcs=false -o bin/habanalabs-device-plugin .
 ARG BUILD_DATE
 ARG BUILD_REF
 
-FROM ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.1.1:${VERSION}-${MINOR_VERSION}
+FROM ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.2.0:${VERSION}-${MINOR_VERSION}
 
 # Remove Habana libs(compat etc) in favor of libs installed by the NVIDIA driver
 RUN apt-get --purge -y autoremove habana*

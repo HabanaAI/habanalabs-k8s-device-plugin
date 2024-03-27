@@ -39,12 +39,12 @@ To build and run using a docker, employ the following options according to your 
 
 - To pull the prebuilt image, run:
 ```shell
-$ docker pull vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:1.14.0
+$ docker pull vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:1.15.0
 ```
 
 - To build without cloning the repository, run:
 ```shell
-$ docker build -t vault.habana.ai/docker-k8s-device-plugin:devel -f Dockerfile https://github.com/HabanaAI/habanalabs-k8s-device-plugin.git#1.14.0
+$ docker build -t vault.habana.ai/docker-k8s-device-plugin:devel -f Dockerfile https://github.com/HabanaAI/habanalabs-k8s-device-plugin.git#1.15.0
 ```
 
 - To modify the code, run: 
