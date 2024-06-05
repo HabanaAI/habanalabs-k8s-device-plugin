@@ -22,20 +22,20 @@ IMAGE_NAME := $(REGISTRY)/$(APP_NAME)
 endif
 
 IMAGE_TAG ?= $(VERSION)-$(MINOR_VERSION)
-IMAGE = $(IMAGE_NAME):$(IMAGE_TAG)
 
+# option to ovveride by user request(e.g: CD)
+IMAGE ?= $(IMAGE_NAME):$(IMAGE_TAG)
+BASE_IMAGE ?= ${REGISTRY}/gaudi-docker/${VERSION}/${DIST}/habanalabs/pytorch-installer-2.2.2:${VERSION}-${MINOR_VERSION}
 
 .PHONY: build push
 
 ## build: build docker image
-build: 
+build:
 	$(DOCKER) build \
 	-t $(IMAGE) \
 	--build-arg BUILD_REF=$(IMAGE_TAG) \
-	--build-arg REGISTRY=$(REGISTRY) \
+	--build-arg BASE_IMAGE=$(BASE_IMAGE) \
 	--build-arg VERSION="$(VERSION)" \
-	--build-arg MINOR_VERSION="$(MINOR_VERSION)" \
-	--build-arg DIST="$(DIST)" \
 	--build-arg GOLANG_VERSION="$(GOLANG_VERSION)" \
 	--build-arg GIT_COMMIT="$(GIT_COMMIT)" \
 	--build-arg BUILD_DATE=`date -u +"%Y-%m-%dT%H:%M:%SZ"` \
