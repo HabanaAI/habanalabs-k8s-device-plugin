@@ -115,7 +115,7 @@ func getDevice(devs []*pluginapi.Device, id string) *pluginapi.Device {
 	return nil
 }
 
-func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device) {
+func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *pluginapi.Device, healthyDevices chan<- *pluginapi.Device, unhealthyDevices map[string]*pluginapi.Device) {
 	eventSet := hlml.NewEventSet()
 	defer hlml.DeleteEventSet(eventSet)
 
@@ -124,6 +124,7 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		if err != nil {
 			slog.Error("Failed registering critial event for device. Marking it unhealthy", "device_id", d.ID, "error", err)
 			xids <- d
+			unhealthyDevices[d.ID] = d
 			continue
 		}
 	}
@@ -138,11 +139,33 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		case <-healthCheckInterval.C:
 			e, err := hlml.WaitForEvent(eventSet, 1000)
 			if err != nil {
-				slog.Error("hlml WaitForEvent failed", "errror", err.Error())
+				for id, d := range unhealthyDevices {
+					err := hlml.RegisterEventForDevice(eventSet, hlml.HlmlCriticalError, id)
+					if err == nil {
+						slog.Info("Device has recovered and is now healthy", "device_id", id)
+						healthyDevices <- d
+						delete(unhealthyDevices, id)
+					}
+				}
+				for _, d := range devs {
+					err := hlml.RegisterEventForDevice(eventSet, hlml.HlmlCriticalError, d.ID)
+					if err != nil {
+						slog.Error("hlml wait for event failed for device, marking it unhealthy", "device_id", d.ID, "error", err)
+						unhealthyDevices[d.ID] = d
+						xids <- d
+					}
+				}
 				time.Sleep(2 * time.Second)
 				continue
 			}
-
+			for id, d := range unhealthyDevices {
+				err := hlml.RegisterEventForDevice(eventSet, hlml.HlmlCriticalError, id)
+				if err == nil {
+					slog.Info("Device has recovered and is now healthy", "device_id", id)
+					healthyDevices <- d
+					delete(unhealthyDevices, id)
+				}
+			}
 			if e.Etype != hlml.HlmlCriticalError {
 				continue
 			}

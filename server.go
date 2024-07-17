@@ -39,6 +39,7 @@ type HabanalabsDevicePlugin struct {
 	log          *slog.Logger
 	stop         chan interface{}
 	health       chan *pluginapi.Device
+	unhealth     chan *pluginapi.Device
 	server       *grpc.Server
 	resourceName string
 	socket       string
@@ -63,9 +64,9 @@ func NewHabanalabsDevicePlugin(log *slog.Logger, resourceManager ResourceManager
 		resourceName:    resourceName,
 		socket:          socket,
 
-		stop:   make(chan interface{}),
-		health: make(chan *pluginapi.Device),
-
+		stop:     make(chan interface{}),
+		health:   make(chan *pluginapi.Device),
+		unhealth: make(chan *pluginapi.Device),
 		// will be initialized on every server restart.
 		devs: nil,
 	}
@@ -192,12 +193,22 @@ func (m *HabanalabsDevicePlugin) ListAndWatch(e *pluginapi.Empty, s pluginapi.De
 			if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: m.devs}); err != nil {
 				m.log.Error("Failed sending ListAndWatch to kubelet", "error", err)
 			}
+		case d := <-m.unhealth:
+			d.Health = pluginapi.Healthy
+			m.log.Info("Device is healthy", "resource", m.resourceName, "id", d.ID)
+			if err := s.Send(&pluginapi.ListAndWatchResponse{Devices: m.devs}); err != nil {
+				m.log.Error("Failed sending ListAndWatch to kubelet", "error", err)
+			}
 		}
 	}
 }
 
 func (m *HabanalabsDevicePlugin) unhealthy(dev *pluginapi.Device) {
 	m.health <- dev
+}
+
+func (m *HabanalabsDevicePlugin) healthy(dev *pluginapi.Device) {
+	m.unhealth <- dev
 }
 
 // Allocate which return list of devices.
@@ -295,9 +306,10 @@ func (m *HabanalabsDevicePlugin) cleanup() error {
 
 func (m *HabanalabsDevicePlugin) healthcheck() {
 	ctx, cancel := context.WithCancel(context.Background())
-
+	healthyDevices := make(chan *pluginapi.Device)
+	unhealthyDevices := make(map[string]*pluginapi.Device)
 	xids := make(chan *pluginapi.Device)
-	go watchXIDs(ctx, m.devs, xids)
+	go watchXIDs(ctx, m.devs, xids, healthyDevices, unhealthyDevices)
 
 	for {
 		select {
@@ -306,6 +318,8 @@ func (m *HabanalabsDevicePlugin) healthcheck() {
 			return
 		case dev := <-xids:
 			m.unhealthy(dev)
+		case dev := <-healthyDevices:
+			m.healthy(dev)
 		}
 	}
 }
