@@ -24,7 +24,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -43,6 +42,7 @@ type HabanalabsDevicePlugin struct {
 	resourceName string
 	socket       string
 	devs         []*pluginapi.Device
+	useCdi       bool
 }
 
 // GetPreferredAllocation returns a preferred set of devices to allocate
@@ -56,7 +56,7 @@ func (m *HabanalabsDevicePlugin) GetPreferredAllocation(ctx context.Context, req
 }
 
 // NewHabanalabsDevicePlugin returns an initialized HabanalabsDevicePlugin.
-func NewHabanalabsDevicePlugin(log *slog.Logger, resourceManager ResourceManager, resourceName string, socket string) *HabanalabsDevicePlugin {
+func NewHabanalabsDevicePlugin(log *slog.Logger, resourceManager ResourceManager, resourceName string, socket string, useCdi bool) *HabanalabsDevicePlugin {
 	return &HabanalabsDevicePlugin{
 		log:             log,
 		ResourceManager: resourceManager,
@@ -67,7 +67,8 @@ func NewHabanalabsDevicePlugin(log *slog.Logger, resourceManager ResourceManager
 		health: make(chan *pluginapi.Device),
 
 		// will be initialized on every server restart.
-		devs: nil,
+		devs:   nil,
+		useCdi: useCdi,
 	}
 }
 
@@ -134,6 +135,11 @@ func (m *HabanalabsDevicePlugin) Start() error {
 	conn.Close()
 
 	go m.healthcheck()
+
+	// Remove any pre-existing Gaudi CDI specs
+	if m.useCdi {
+		m.cdiSpecCleanup()
+	}
 
 	return nil
 }
@@ -203,13 +209,10 @@ func (m *HabanalabsDevicePlugin) unhealthy(dev *pluginapi.Device) {
 // Allocate which return list of devices.
 func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.AllocateRequest) (*pluginapi.AllocateResponse, error) {
 	devs := m.devs
+
 	response := pluginapi.AllocateResponse{ContainerResponses: []*pluginapi.ContainerAllocateResponse{}}
 	for _, req := range reqs.ContainerRequests {
-		var devicesList []*pluginapi.DeviceSpec
-		netConfig := make([]string, 0, len(req.DevicesIDs))
-		paths := make([]string, 0, len(req.DevicesIDs))
-		uuids := make([]string, 0, len(req.DevicesIDs))
-		visibleModule := make([]string, 0, len(req.DevicesIDs))
+		devEntitys := make([]deviceEntity, 0, len(req.DevicesIDs))
 
 		for _, id := range req.DevicesIDs {
 			device := getDevice(devs, id)
@@ -239,42 +242,40 @@ func (m *HabanalabsDevicePlugin) Allocate(ctx context.Context, reqs *pluginapi.A
 				return nil, err
 			}
 
-			path := fmt.Sprintf("/dev/accel/accel%d", minor)
-			paths = append(paths, path)
-			uuids = append(uuids, id)
-			netConfig = append(netConfig, fmt.Sprintf("%d", minor))
-			visibleModule = append(visibleModule, fmt.Sprintf("%d", moduleID))
-
-			ds := &pluginapi.DeviceSpec{
-				ContainerPath: path,
-				HostPath:      path,
-				Permissions:   "rw",
+			// Gather devices here and convert them to normal DP devicespecs or
+			// CDI device names after the loop.
+			devEntity := deviceEntity{
+				moduleId: moduleID,
+				deviceId: minor,
+				uuid:     id,
+				devicePaths: []string{
+					fmt.Sprintf("/dev/accel/accel%d", minor),
+					fmt.Sprintf("/dev/accel/accel_controlD%d", minor),
+				},
 			}
-			devicesList = append(devicesList, ds)
-			path = fmt.Sprintf("/dev/accel/accel_controlD%d", minor)
 
-			ds = &pluginapi.DeviceSpec{
-				ContainerPath: path,
-				HostPath:      path,
-				Permissions:   "rw",
+			// DP's DeviceSpec has not included uverbs, but CDI will.
+			if m.useCdi {
+				devEntity.devicePaths = append(devEntity.devicePaths, m.uverbsForAccelerator(minor))
 			}
-			devicesList = append(devicesList, ds)
+
+			devEntitys = append(devEntitys, devEntity)
 		}
 
-		envMap := map[string]string{
-			"HABANA_VISIBLE_DEVICES":  strings.Join(netConfig, ","),
-			"HL_VISIBLE_DEVICES":      strings.Join(paths, ","),
-			"HL_VISIBLE_DEVICES_UUID": strings.Join(uuids, ","),
-		}
+		subset := bool(len(devEntitys) < len(m.devs))
+		envMap := envsFromDevices(devEntitys, subset)
 
-		if len(req.DevicesIDs) < len(m.devs) {
-			envMap["HABANA_VISIBLE_MODULES"] = strings.Join(visibleModule, ",")
+		// Depending on the mode, return CDI device names or DeviceSpecs.
+		if m.useCdi {
+			response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
+				CDIDevices: m.writeCdiSpecAndReturnDevices(devEntitys, envMap),
+			})
+		} else {
+			response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
+				Devices: m.createDeviceSpecs(devEntitys),
+				Envs:    envMap,
+			})
 		}
-
-		response.ContainerResponses = append(response.ContainerResponses, &pluginapi.ContainerAllocateResponse{
-			Devices: devicesList,
-			Envs:    envMap,
-		})
 	}
 
 	return &response, nil
@@ -288,6 +289,11 @@ func (m *HabanalabsDevicePlugin) PreStartContainer(context.Context, *pluginapi.P
 func (m *HabanalabsDevicePlugin) cleanup() error {
 	if err := os.Remove(m.socket); err != nil && !os.IsNotExist(err) {
 		return err
+	}
+
+	// Remove CDI specs that were created during the life cycle of the plugin
+	if m.useCdi {
+		m.cdiSpecCleanup()
 	}
 
 	return nil

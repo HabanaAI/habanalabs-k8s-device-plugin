@@ -17,6 +17,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log/slog"
 	"os"
@@ -32,8 +33,14 @@ import (
 // build is overridden with an actual version in the build process.
 var build = "develop"
 
+// Use CDI to allocate devices, environment variables, runtime hook etc.
+var useCdi = flag.Bool("cdi", false, "use CDI devices to allocate devices")
+
 func main() {
 	log := initLogger()
+
+	flag.Parse()
+
 	if err := run(log); err != nil {
 		log.Error(err.Error())
 		os.Exit(1)
@@ -88,6 +95,7 @@ func run(log *slog.Logger) error {
 		NewDeviceManager(log, strings.ToUpper(dev)),
 		"habana.ai/"+dev,
 		pluginapi.DevicePluginPath+dev+"_habanalabs.sock",
+		*useCdi,
 	)
 
 L:
