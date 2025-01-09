@@ -138,7 +138,7 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 		case <-healthCheckInterval.C:
 			e, err := hlml.WaitForEvent(eventSet, 1000)
 			if err != nil {
-				slog.Error("hlml WaitForEvent failed", "errror", err.Error())
+				slog.Error("hlml WaitForEvent failed", "error", err.Error())
 				time.Sleep(2 * time.Second)
 				continue
 			}
@@ -157,8 +157,8 @@ func watchXIDs(ctx context.Context, devs []*pluginapi.Device, xids chan<- *plugi
 				continue
 			}
 
-			uuid, err := dev.UUID()
-			if err != nil || len(uuid) == 0 {
+                        serial, err := dev.SerialNumber() // BUG: fix this was before UUID
+                        if err != nil || len(serial) == 0 {
 				slog.Error("XidCriticalError: All devices will go unhealthy", "xid", e.Etype)
 				// All devices are unhealthy
 				for _, d := range devs {
